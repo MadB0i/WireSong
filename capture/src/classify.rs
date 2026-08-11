@@ -18,6 +18,7 @@ pub enum EventType {
     HttpData,
     Udp,
     Icmp,
+    PortScanAlert,
     Other,
 }
 
@@ -41,6 +42,7 @@ impl std::fmt::Display for ClassifiedEvent {
             EventType::HttpData => "HttpData",
             EventType::Udp => "Udp",
             EventType::Icmp => "Icmp",
+            EventType::PortScanAlert => "PortScan",
             EventType::Other => "Other",
         };
         let endpoint = |ip: Option<IpAddr>, port: Option<u16>| match (ip, port) {

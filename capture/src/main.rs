@@ -1,5 +1,6 @@
 mod capture;
 mod classify;
+mod portscan;
 
 use clap::Parser;
 use std::process::ExitCode;
