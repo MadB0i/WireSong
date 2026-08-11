@@ -1,0 +1,50 @@
+# Notes are MIDI numbers on a C major pentatonic scale across 2
+# octaves, chosen so any combination of notes sounds harmonious
+# together (no dissonant intervals possible) — this is what makes
+# quantizing arbitrary port numbers onto it sound musical instead
+# of random.
+[scale]
+notes = [60, 62, 64, 67, 69, 72, 74, 76, 79, 81]
+
+[event.tcp_syn]
+duration_ms = 180
+velocity_base = 0.6
+waveform = "pluck"
+
+[event.tcp_synack]
+duration_ms = 180
+velocity_base = 0.7
+waveform = "pluck"
+scale_degree_offset = 2   # answers 2 scale-degrees above the syn's
+                          # pitch (not raw semitones — keeps it on-scale)
+
+[event.tcp_rst]
+duration_ms = 80
+velocity_base = 0.25
+waveform = "damped"
+
+[event.dns_query]
+duration_ms = 300
+velocity_base = 0.5
+waveform = "bell"
+
+[event.http_data]
+duration_ms_min = 300
+duration_ms_max = 900
+velocity_base = 0.5
+waveform = "pad"
+
+[event.udp]
+duration_ms = 100
+velocity_base = 0.4
+waveform = "pizzicato"
+
+[event.icmp]
+duration_ms = 250
+velocity_base = 0.3
+waveform = "sine"
+
+[event.port_scan_alert]
+duration_ms = 1200
+velocity_base = 1.0
+waveform = "alarm_arpeggio"

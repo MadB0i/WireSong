@@ -18,6 +18,7 @@ pub enum EventType {
     HttpData,
     Udp,
     Icmp,
+    #[allow(dead_code)]
     PortScanAlert,
     Other,
 }
