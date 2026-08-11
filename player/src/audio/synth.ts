@@ -1,4 +1,4 @@
-﻿import * as Tone from "tone";
+import * as Tone from "tone";
 import type { NoteEvent } from "../ws";
 
 // The ambient pack intentionally mirrors capture/instruments/ambient.toml's
