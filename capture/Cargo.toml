@@ -1,0 +1,9 @@
+[package]
+name = "wiresong"
+version = "0.1.0"
+edition = "2021"
+description = "Real-time network packet sonification backend"
+
+[dependencies]
+pcap = "2"
+clap = { version = "4", features = ["derive"] }
