@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { initAudio, isAudioStarted, playNoteEvent } from "./audio/synth";
 import { InstrumentPicker } from "./components/InstrumentPicker";
 import { PianoRoll, type TimestampedNoteEvent } from "./components/PianoRoll";
+import { RecordControls } from "./components/RecordControls";
 import {
   connectWireSong,
   type NoteEvent,
@@ -103,6 +104,7 @@ function App() {
           Connect
         </button>
         <InstrumentPicker />
+        <RecordControls />
         {!audioOn && (
           <button
             data-testid="audio-button"

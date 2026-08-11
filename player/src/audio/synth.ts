@@ -321,6 +321,15 @@ export const PACKS: Record<PackName, Record<string, VoiceSpec>> = {
 
 let currentPack: PackName = "ambient";
 
+let masterBus: Tone.Gain | null = null;
+
+export function getMasterBus(): Tone.Gain {
+  if (!masterBus) {
+    masterBus = new Tone.Gain(1).toDestination();
+  }
+  return masterBus;
+}
+
 export function setVoicePack(pack: PackName): void {
   currentPack = pack;
 }
@@ -342,7 +351,7 @@ export function playNoteEvent(event: NoteEvent): void {
   const volume = new Tone.Volume(velocityToDb(event.velocity));
   node.connect(panner);
   panner.connect(volume);
-  volume.toDestination();
+  volume.connect(getMasterBus());
   activeChains += 1;
 
   scheduleDispose(Math.max(event.duration_ms, 0) + RELEASE_TAIL_MS, [node, panner, volume]);
