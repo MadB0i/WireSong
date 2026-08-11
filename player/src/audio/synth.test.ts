@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { midiToFrequency, velocityToDb, WAVEFORM_BY_EVENT } from "./synth";
+import { midiToFrequency, velocityToDb, PACKS, type PackName } from "./synth";
 
 describe("midiToFrequency", () => {
   it("maps MIDI 69 (A4) to ~440 Hz", () => {
@@ -21,20 +21,36 @@ describe("velocityToDb", () => {
   });
 });
 
-describe("WAVEFORM_BY_EVENT", () => {
-  it("has a waveform entry for all 8 backend event types", () => {
-    const backendEventTypes = [
-      "tcp_syn",
-      "tcp_synack",
-      "tcp_rst",
-      "dns_query",
-      "http_data",
-      "udp",
-      "icmp",
-      "port_scan_alert",
-    ];
-    for (const eventType of backendEventTypes) {
-      expect(WAVEFORM_BY_EVENT[eventType], eventType).toBeDefined();
+describe("PACKS", () => {
+  const packNames: PackName[] = ["ambient", "chiptune", "orchestral"];
+  const backendEventTypes = [
+    "tcp_syn",
+    "tcp_synack",
+    "tcp_rst",
+    "dns_query",
+    "http_data",
+    "udp",
+    "icmp",
+    "port_scan_alert",
+  ];
+
+  it("every pack has a buildable voice for all 8 backend event types", () => {
+    for (const pack of packNames) {
+      for (const eventType of backendEventTypes) {
+        const voice = PACKS[pack][eventType];
+        expect(voice, `${pack}/${eventType}`).toBeDefined();
+        expect(typeof voice.build, `${pack}/${eventType}`).toBe("function");
+      }
+    }
+  });
+
+  it("flags only the port_scan_alert voice as an alarm voice", () => {
+    for (const pack of packNames) {
+      for (const eventType of backendEventTypes) {
+        expect(PACKS[pack][eventType].isAlarmVoice === true, `${pack}/${eventType}`).toBe(
+          eventType === "port_scan_alert",
+        );
+      }
     }
   });
 });
