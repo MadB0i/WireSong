@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { initAudio, isAudioStarted, playNoteEvent } from "./audio/synth";
 import {
   connectWireSong,
   type NoteEvent,
@@ -26,14 +27,20 @@ function App() {
   const [banner, setBanner] = useState<{ message: string; id: number } | null>(
     null,
   );
+  const [audioOn, setAudioOn] = useState(false);
   const connectionRef = useRef<WireSongConnection | null>(null);
   const timestampsRef = useRef<number[]>([]);
   const bannerTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const enableAudio = useCallback(() => {
+    void initAudio().then(() => setAudioOn(isAudioStarted()));
+  }, []);
 
   const connect = useCallback(() => {
     connectionRef.current?.close();
     connectionRef.current = connectWireSong(url, {
       onNoteEvent: (event) => {
+        playNoteEvent(event);
         timestampsRef.current.push(Date.now());
         setTotal((t) => t + 1);
         setLog((prev) => [event, ...prev].slice(0, LOG_SIZE));
@@ -91,6 +98,18 @@ function App() {
         >
           Connect
         </button>
+        {!audioOn && (
+          <button
+            data-testid="audio-button"
+            onClick={enableAudio}
+            className="bg-sky-700 hover:bg-sky-600 rounded px-4 py-2"
+          >
+            🔊 Enable Audio
+          </button>
+        )}
+        <span data-testid="audio-status" className="self-center">
+          Audio: {audioOn ? "on" : "off"}
+        </span>
       </div>
 
       <div className="flex gap-6 mb-4">
