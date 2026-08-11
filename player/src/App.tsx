@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { initAudio, isAudioStarted, playNoteEvent } from "./audio/synth";
+import { PianoRoll, type TimestampedNoteEvent } from "./components/PianoRoll";
 import {
   connectWireSong,
   type NoteEvent,
@@ -31,6 +32,7 @@ function App() {
   const connectionRef = useRef<WireSongConnection | null>(null);
   const timestampsRef = useRef<number[]>([]);
   const bannerTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const eventBufferRef = useRef<TimestampedNoteEvent[]>([]);
 
   const enableAudio = useCallback(() => {
     void initAudio().then(() => setAudioOn(isAudioStarted()));
@@ -41,6 +43,7 @@ function App() {
     connectionRef.current = connectWireSong(url, {
       onNoteEvent: (event) => {
         playNoteEvent(event);
+        eventBufferRef.current.push({ ...event, received_at_ms: performance.now() });
         timestampsRef.current.push(Date.now());
         setTotal((t) => t + 1);
         setLog((prev) => [event, ...prev].slice(0, LOG_SIZE));
@@ -130,6 +133,8 @@ function App() {
           {banner.message}
         </div>
       )}
+
+      <PianoRoll eventBufferRef={eventBufferRef} />
 
       <ul className="space-y-1" data-testid="event-log">
         {log.map((event, index) => (
