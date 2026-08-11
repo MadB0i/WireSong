@@ -1,3 +1,4 @@
+use crate::classify::{classify, classify_ip};
 use pcap::Device;
 
 pub fn list_devices() -> Result<Vec<String>, pcap::Error> {
@@ -27,6 +28,8 @@ pub fn run(interface: &str, max_packets: u64) -> Result<u64, pcap::Error> {
     };
 
     let mut count = 0u64;
+    let linktype = capture.get_datalink();
+    println!("linktype: {linktype:?}");
     loop {
         if max_packets > 0 && count >= max_packets {
             break;
@@ -34,7 +37,15 @@ pub fn run(interface: &str, max_packets: u64) -> Result<u64, pcap::Error> {
         match capture.next_packet() {
             Ok(packet) => {
                 count += 1;
-                println!("[{count:>6}] packet: {} bytes", packet.header.len);
+                let event = match linktype {
+                    pcap::Linktype::ETHERNET => classify(&packet.data),
+                    pcap::Linktype::NULL => classify_ip(packet.data.get(4..).unwrap_or_default()),
+                    other => {
+                        eprintln!("unsupported linktype {other:?}; skipping packet");
+                        continue;
+                    }
+                };
+                println!("[{count:>6}] {event}");
             }
             Err(pcap::Error::TimeoutExpired) => continue,
             Err(err) => return Err(err),

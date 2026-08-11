@@ -6,4 +6,5 @@ description = "Real-time network packet sonification backend"
 
 [dependencies]
 pcap = "2"
+pnet_packet = "0.35"
 clap = { version = "4", features = ["derive"] }
