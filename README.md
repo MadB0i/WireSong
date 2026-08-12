@@ -6,10 +6,15 @@ WireSong turns live network traffic into a real-time generative soundscape. Pack
 
 ## Demo
 
-<!-- TODO: replace with real demo video link before launch -->
-![WireSong demo](https://via.placeholder.com/800x450?text=WireSong+demo+video+coming+soon)
+![WireSong demo](docs/demo.gif)
 
-*A minute of mixed traffic (syns, HTTP, DNS, UDP, ICMP) droning along as an ambient soundscape — then, around the 30-second mark, a burst of SYN packets triggers the port-scan alarm: a four-note rising arpeggio cuts in while a red band sweeps across the piano-roll display.*
+*Illustrative mockup of the piano-roll view — mixed traffic scrolls by as colored bars, then a burst of SYNs triggers the port-scan alert: a red "SCAN" band sweeps across the display while a four-note rising arpeggio cuts into the mix.* This GIF is a stylized stand-in (built to match the real component's palette and layout), not a screen capture — swap it for a real recording whenever you get the chance:
+
+<!-- TODO: replace docs/demo.gif with a real screen + audio recording. Quick recipe:
+     1. Run the live pipeline (or the no-backend replay demo below) with sound on.
+     2. Screen-record ~45–60s with OBS/ShareX, including a port-scan trigger.
+     3. ffmpeg -i demo.mp4 -vf "fps=12,scale=760:-1:flags=lanczos" -loop 0 docs/demo.gif
+     4. For a version with audio, keep an .mp4 too and link it here alongside the GIF. -->
 
 Try it right now without any setup: `cd player && npm run build && npm run preview`, open the browser, and click **▶ Try Live Demo (no backend needed)** — a bundled 60-second replay of realistic traffic, no capture permissions or root required. A hosted copy is deployed to GitHub Pages at <https://MadB0i.github.io/WireSong/> (deployed via `.github/workflows/deploy-demo.yml`).
 
@@ -131,7 +136,8 @@ WireSong/
 │   ├── src/components/  InstrumentPicker · PianoRoll · RecordControls
 │   └── src/          App.tsx · ws.ts (WebSocket client) · replay.ts (demo replay)
 ├── examples/         replay-demo.json (bundled 60s demo fixture) + its generator
-├── .github/          CI workflow (cargo test + npm test + build)
+├── docs/             demo.gif
+├── .github/          CI workflow (cargo test + npm test + build) + Pages deploy workflow
 ├── README.md
 └── LICENSE
 ```
