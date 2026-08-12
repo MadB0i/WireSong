@@ -1,6 +1,6 @@
 # WireSong
 
-[![CI](https://github.com/<OWNER>/<REPO>/actions/workflows/ci.yml/badge.svg)](https://github.com/<OWNER>/<REPO>/actions/workflows/ci.yml)
+[![CI](https://github.com/MadB0i/WireSong/actions/workflows/ci.yml/badge.svg)](https://github.com/MadB0i/WireSong/actions/workflows/ci.yml)
 
 WireSong turns live network traffic into a real-time generative soundscape. Packets are captured and classified in Rust, quantized onto a pentatonic scale so that even heavy traffic sounds harmonious, and streamed to a browser that synthesizes each packet as an instrument voice — so a busy network literally hums along as it works. Anomalies are surfaced the same way your ears would want them: when a port scan is detected, a distinct four-note alarm cuts through the mix, plus a red band on a scrolling piano-roll visualization. It is sonification as an alerting mechanism, not just another dashboard.
 
@@ -11,9 +11,7 @@ WireSong turns live network traffic into a real-time generative soundscape. Pack
 
 *A minute of mixed traffic (syns, HTTP, DNS, UDP, ICMP) droning along as an ambient soundscape — then, around the 30-second mark, a burst of SYN packets triggers the port-scan alarm: a four-note rising arpeggio cuts in while a red band sweeps across the piano-roll display.*
 
-Try it right now without any setup: `cd player && npm run build && npm run preview`, open the browser, and click **▶ Try Live Demo (no backend needed)** — a bundled 60-second replay of realistic traffic, no capture permissions or root required. A hosted copy will land at:
-
-<!-- TODO: deployed demo URL -->
+Try it right now without any setup: `cd player && npm run build && npm run preview`, open the browser, and click **▶ Try Live Demo (no backend needed)** — a bundled 60-second replay of realistic traffic, no capture permissions or root required. A hosted copy is deployed to GitHub Pages at <https://MadB0i.github.io/WireSong/> (deployed via `.github/workflows/deploy-demo.yml`).
 
 ## How it works
 
