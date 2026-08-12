@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { initAudio, isAudioStarted, playNoteEvent } from "./audio/synth";
+import { startReplay } from "./replay";
 import { InstrumentPicker } from "./components/InstrumentPicker";
 import { PianoRoll, type TimestampedNoteEvent } from "./components/PianoRoll";
 import { RecordControls } from "./components/RecordControls";
@@ -31,35 +32,54 @@ function App() {
     null,
   );
   const [audioOn, setAudioOn] = useState(false);
+  const [replayRunning, setReplayRunning] = useState(false);
   const connectionRef = useRef<WireSongConnection | null>(null);
   const timestampsRef = useRef<number[]>([]);
   const bannerTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const eventBufferRef = useRef<TimestampedNoteEvent[]>([]);
+  const replayRef = useRef<{ stop: () => void } | null>(null);
 
   const enableAudio = useCallback(() => {
     void initAudio().then(() => setAudioOn(isAudioStarted()));
   }, []);
 
+  const handleNoteEvent = useCallback((event: NoteEvent) => {
+    playNoteEvent(event);
+    eventBufferRef.current.push({ ...event, received_at_ms: performance.now() });
+    timestampsRef.current.push(Date.now());
+    setTotal((t) => t + 1);
+    setLog((prev) => [event, ...prev].slice(0, LOG_SIZE));
+  }, []);
+
+  const showBanner = useCallback((message: string) => {
+    setBanner({ message, id: Date.now() });
+    if (bannerTimerRef.current !== null) {
+      clearTimeout(bannerTimerRef.current);
+    }
+    bannerTimerRef.current = setTimeout(() => setBanner(null), BANNER_MS);
+  }, []);
+
+  const startReplayDemo = useCallback(() => {
+    replayRef.current?.stop();
+    replayRef.current = startReplay({
+      onNoteEvent: handleNoteEvent,
+      onComplete: () => {
+        replayRef.current = null;
+        setReplayRunning(false);
+        showBanner("Replay finished");
+      },
+    });
+    setReplayRunning(true);
+  }, [handleNoteEvent, showBanner]);
+
   const connect = useCallback(() => {
     connectionRef.current?.close();
     connectionRef.current = connectWireSong(url, {
-      onNoteEvent: (event) => {
-        playNoteEvent(event);
-        eventBufferRef.current.push({ ...event, received_at_ms: performance.now() });
-        timestampsRef.current.push(Date.now());
-        setTotal((t) => t + 1);
-        setLog((prev) => [event, ...prev].slice(0, LOG_SIZE));
-      },
-      onControlMessage: (msg) => {
-        setBanner({ message: msg.message, id: Date.now() });
-        if (bannerTimerRef.current !== null) {
-          clearTimeout(bannerTimerRef.current);
-        }
-        bannerTimerRef.current = setTimeout(() => setBanner(null), BANNER_MS);
-      },
+      onNoteEvent: handleNoteEvent,
+      onControlMessage: (msg) => showBanner(msg.message),
       onStatusChange: setStatus,
     });
-  }, [url]);
+  }, [url, handleNoteEvent, showBanner]);
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -74,6 +94,8 @@ function App() {
     return () => {
       connectionRef.current?.close();
       connectionRef.current = null;
+      replayRef.current?.stop();
+      replayRef.current = null;
       if (bannerTimerRef.current !== null) {
         clearTimeout(bannerTimerRef.current);
       }
@@ -87,6 +109,14 @@ function App() {
       <div className="flex items-center gap-2 mb-4">
         <span className={`h-3 w-3 rounded-full ${STATUS_COLORS[status]}`} />
         <span data-testid="status">{status}</span>
+        {replayRunning && (
+          <span
+            data-testid="replay-indicator"
+            className="rounded bg-fuchsia-800 px-2 py-0.5 text-xs"
+          >
+            Replay Mode
+          </span>
+        )}
       </div>
 
       <div className="flex gap-2 mb-4">
@@ -99,9 +129,18 @@ function App() {
         <button
           data-testid="connect-button"
           onClick={connect}
-          className="bg-emerald-700 hover:bg-emerald-600 rounded px-4 py-2"
+          disabled={replayRunning}
+          className="bg-emerald-700 hover:bg-emerald-600 rounded px-4 py-2 disabled:opacity-40 disabled:cursor-not-allowed"
         >
           Connect
+        </button>
+        <button
+          data-testid="replay-button"
+          onClick={startReplayDemo}
+          disabled={replayRunning || status === "open" || status === "connecting"}
+          className="bg-fuchsia-800 hover:bg-fuchsia-700 rounded px-4 py-2 disabled:opacity-40 disabled:cursor-not-allowed"
+        >
+          ▶ Try Live Demo (no backend needed)
         </button>
         <InstrumentPicker />
         <RecordControls />
