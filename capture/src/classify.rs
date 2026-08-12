@@ -167,10 +167,8 @@ fn classify_transport(event: &mut ClassifiedEvent, protocol: IpNextHeaderProtoco
                 event.event_type = EventType::Icmp;
             }
         }
-        IpNextHeaderProtocols::Icmpv6 => {
-            if Icmpv6Packet::new(payload).is_some() {
-                event.event_type = EventType::Icmp;
-            }
+        IpNextHeaderProtocols::Icmpv6 if Icmpv6Packet::new(payload).is_some() => {
+            event.event_type = EventType::Icmp;
         }
         _ => {}
     }

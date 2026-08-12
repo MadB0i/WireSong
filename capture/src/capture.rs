@@ -80,7 +80,7 @@ pub fn run(
                 let now = Instant::now();
                 let now_ms = start.elapsed().as_millis() as u64;
                 let event = match linktype {
-                    pcap::Linktype::ETHERNET => classify(&packet.data),
+                    pcap::Linktype::ETHERNET => classify(packet.data),
                     pcap::Linktype::NULL => classify_ip(packet.data.get(4..).unwrap_or_default()),
                     other => {
                         eprintln!("unsupported linktype {other:?}; skipping packet");
