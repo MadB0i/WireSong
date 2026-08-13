@@ -7,7 +7,7 @@
   },
   "overrides": [
     {
-      "files": ["src/components/PianoRoll.tsx"],
+      "files": ["src/components/PianoRoll.tsx", "src/components/NetworkGraph.tsx"],
       "rules": {
         "react/only-export-components": "off"
       }

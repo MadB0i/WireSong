@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type JSX, type RefObject } from "react";
+import { useEffect, useRef, type JSX, type RefObject } from "react";
 import type { TimestampedNoteEvent } from "./PianoRoll";
 import { colorForEventType } from "./PianoRoll";
 import { packetFeedRow } from "./packetFeedFormat";
@@ -8,6 +8,8 @@ const RENDER_INTERVAL_MS = 250;
 
 interface PacketFeedProps {
   eventBufferRef: RefObject<TimestampedNoteEvent[]>;
+  redact: boolean;
+  onRedactChange: (redact: boolean) => void;
 }
 
 function formatClock(ms: number): string {
@@ -18,13 +20,10 @@ function formatClock(ms: number): string {
   return `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}.${String(millis).padStart(3, "0")}`;
 }
 
-export function PacketFeed({ eventBufferRef }: PacketFeedProps): JSX.Element {
+export function PacketFeed({ eventBufferRef, redact, onRedactChange }: PacketFeedProps): JSX.Element {
   const containerRef = useRef<HTMLUListElement | null>(null);
-  const [redact, setRedact] = useState(true);
-  const redactRef = useRef(redact);
 
   useEffect(() => {
-    redactRef.current = redact;
     const container = containerRef.current;
     if (container === null) {
       return;
@@ -34,7 +33,7 @@ export function PacketFeed({ eventBufferRef }: PacketFeedProps): JSX.Element {
       const rows = events.slice(Math.max(0, events.length - MAX_ROWS)).reverse();
       container.replaceChildren();
       for (const event of rows) {
-        const { token, body, isAlert } = packetFeedRow(event, redactRef.current);
+        const { token, body, isAlert } = packetFeedRow(event, redact);
         const row = document.createElement("li");
         row.className = "feed-row";
         const tokenEl = document.createElement("span");
@@ -68,7 +67,7 @@ export function PacketFeed({ eventBufferRef }: PacketFeedProps): JSX.Element {
             data-testid="redact-toggle"
             type="checkbox"
             checked={redact}
-            onChange={(e) => setRedact(e.target.checked)}
+            onChange={(e) => onRedactChange(e.target.checked)}
             className="h-3 w-3 accent-emerald-400"
           />
           Redact IPs

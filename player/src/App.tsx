@@ -15,6 +15,7 @@ import {
 import { PacketFeed } from "./components/PacketFeed";
 import { SpectrumAnalyzer } from "./components/SpectrumAnalyzer";
 import { AmbientBackground } from "./components/AmbientBackground";
+import { NetworkGraph } from "./components/NetworkGraph";
 import { RecordControls } from "./components/RecordControls";
 import {
   connectWireSong,
@@ -60,6 +61,7 @@ function App() {
   const [audioOn, setAudioOn] = useState(false);
   const [muted, setMuted] = useState(false);
   const [replayRunning, setReplayRunning] = useState(false);
+  const [redactIps, setRedactIps] = useState(true);
   const connectionRef = useRef<WireSongConnection | null>(null);
   const timestampsRef = useRef<number[]>([]);
   const bannerTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -374,6 +376,22 @@ function App() {
           <header className="flex items-center gap-2 px-2 pb-2 pt-0.5">
             <span className="status-dot h-1.5 w-1.5 rounded-full bg-emerald-400" />
             <h2 className="text-[11px] font-semibold uppercase tracking-widest text-zinc-500">
+              Network graph
+            </h2>
+            <span className="ml-auto font-mono text-[11px] text-zinc-600">
+              live connections · local node pinned
+            </span>
+          </header>
+          <NetworkGraph eventBufferRef={eventBufferRef} redactIps={redactIps} />
+          <footer className="border-t border-white/5 px-2 pt-1.5 font-mono text-[10px] text-zinc-600">
+            nodes pruned after 15s idle · dots travel src → dst per event
+          </footer>
+        </section>
+
+        <section className="glass mt-3 rounded-sm p-2.5">
+          <header className="flex items-center gap-2 px-2 pb-2 pt-0.5">
+            <span className="status-dot h-1.5 w-1.5 rounded-full bg-emerald-400" />
+            <h2 className="text-[11px] font-semibold uppercase tracking-widest text-zinc-500">
               Piano roll
             </h2>
             <span className="ml-auto font-mono text-[11px] text-zinc-600">
@@ -401,7 +419,11 @@ function App() {
         </section>
 
         <section className="glass mt-3 rounded-sm">
-          <PacketFeed eventBufferRef={eventBufferRef} />
+          <PacketFeed
+            eventBufferRef={eventBufferRef}
+            redact={redactIps}
+            onRedactChange={setRedactIps}
+          />
         </section>
 
         <footer className="mt-5 text-center font-mono text-[11px] text-zinc-600">
