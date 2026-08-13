@@ -8,7 +8,7 @@ const HTTP_TYPICAL_MAX_BYTES: f32 = 8000.0;
 const PAN_OUTBOUND: f32 = 0.6;
 const PAN_INBOUND: f32 = -0.6;
 
-#[derive(Serialize, Clone, Debug)]
+#[derive(Serialize, serde::Deserialize, Clone, Debug)]
 pub struct NoteEvent {
     pub timestamp_ms: u64,
     pub event_type: String,
@@ -17,6 +17,14 @@ pub struct NoteEvent {
     pub duration_ms: u32,
     pub pan: f32,
     pub size_bytes: usize,
+    #[serde(default)]
+    pub src_ip: Option<String>,
+    #[serde(default)]
+    pub dst_ip: Option<String>,
+    #[serde(default)]
+    pub src_port: Option<u16>,
+    #[serde(default)]
+    pub dst_port: Option<u16>,
 }
 
 pub struct Mapper {
@@ -88,6 +96,10 @@ impl Mapper {
             duration_ms,
             pan,
             size_bytes: event.size_bytes,
+            src_ip: event.src_ip.map(|ip| ip.to_string()),
+            dst_ip: event.dst_ip.map(|ip| ip.to_string()),
+            src_port: event.src_port,
+            dst_port: event.dst_port,
         })
     }
 
@@ -108,6 +120,10 @@ impl Mapper {
             duration_ms,
             pan: PAN_INBOUND,
             size_bytes: 0,
+            src_ip: Some(_alert.src_ip.to_string()),
+            dst_ip: None,
+            src_port: None,
+            dst_port: None,
         }
     }
 }
@@ -212,5 +228,65 @@ mod tests {
         assert_eq!(note.event_type, "port_scan_alert");
         assert_eq!(note.pitch, pack().scale.notes[pack().scale.notes.len() / 2]);
         assert_eq!(note.duration_ms, 1200);
+    }
+
+    #[test]
+    fn packet_metadata_round_trips_into_note_event() {
+        let mapper = Mapper::new(pack(), LOCAL);
+        let note = mapper
+            .map(&event(EventType::TcpSyn, LOCAL, REMOTE, 443, 66), 1000)
+            .expect("TcpSyn should map");
+        assert_eq!(note.src_ip.as_deref(), Some("10.0.0.5"));
+        assert_eq!(note.dst_ip.as_deref(), Some("93.184.216.34"));
+        assert_eq!(note.src_port, Some(52341));
+        assert_eq!(note.dst_port, Some(443));
+    }
+
+    #[test]
+    fn ipv6_metadata_round_trips_into_note_event() {
+        let mapper = Mapper::new(pack(), LOCAL);
+        let src = IpAddr::V6(Ipv6Addr::LOCALHOST);
+        let dst = IpAddr::V6(Ipv6Addr::new(0x2001, 0xdb8, 0, 0, 0, 0, 0, 1));
+        let note = mapper
+            .map(&event(EventType::Udp, src, dst, 53, 90), 1000)
+            .expect("Udp should map");
+        assert_eq!(note.src_ip.as_deref(), Some("::1"));
+        assert_eq!(note.dst_ip.as_deref(), Some("2001:db8::1"));
+        assert_eq!(note.src_port, Some(52341));
+        assert_eq!(note.dst_port, Some(53));
+    }
+
+    #[test]
+    fn alert_metadata_has_src_ip_only() {
+        let mapper = Mapper::new(pack(), LOCAL);
+        let alert = PortScanAlert {
+            src_ip: IpAddr::V4(Ipv4Addr::new(192, 168, 1, 42)),
+            distinct_ports: 9,
+            window_secs: 3,
+        };
+        let note = mapper.map_alert(&alert, 2000);
+        assert_eq!(note.src_ip.as_deref(), Some("192.168.1.42"));
+        assert_eq!(note.dst_ip, None);
+        assert_eq!(note.src_port, None);
+        assert_eq!(note.dst_port, None);
+    }
+
+    #[test]
+    fn legacy_note_events_without_metadata_still_deserialize() {
+        let legacy = r#"{
+            "timestamp_ms": 1000,
+            "event_type": "tcp_syn",
+            "pitch": 64,
+            "velocity": 0.5,
+            "duration_ms": 200,
+            "pan": 0.0,
+            "size_bytes": 66
+        }"#;
+        let note: NoteEvent = serde_json::from_str(legacy).expect("old fixture deserializes");
+        assert_eq!(note.event_type, "tcp_syn");
+        assert_eq!(note.src_ip, None);
+        assert_eq!(note.dst_ip, None);
+        assert_eq!(note.src_port, None);
+        assert_eq!(note.dst_port, None);
     }
 }

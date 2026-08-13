@@ -128,6 +128,10 @@ mod tests {
             duration_ms: 100,
             pan: 0.0,
             size_bytes: 100,
+            src_ip: None,
+            dst_ip: None,
+            src_port: None,
+            dst_port: None,
         };
         assert!(tx.send(note).is_err());
     }
