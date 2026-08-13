@@ -219,6 +219,7 @@ export function applyPhysicsStep(
 interface GraphEdge {
   lastSeenMs: number;
   eventType: string;
+  eventCount: number;
 }
 
 interface TravelingDot {
@@ -227,6 +228,7 @@ interface TravelingDot {
   startMs: number;
   durationMs: number;
   eventType: string;
+  positions: number[]; // [x1, y1, x2, y2, ...] sampled each frame
 }
 
 interface Pulse {
@@ -278,6 +280,7 @@ export function NetworkGraph({
     const pulses: Pulse[] = [];
     let lastProcessed = 0;
     let lastFrameMs = 0;
+    let lastPulseAddMs = 0;
 
     const draw = (nowMs: number) => {
       const ctx = canvas.getContext("2d");
@@ -322,10 +325,11 @@ export function NetworkGraph({
           const key = edgeKeyFor(src, dst);
           const edge = edges.get(key);
           if (edge === undefined) {
-            edges.set(key, { lastSeenMs: nowMs, eventType: event.event_type });
+            edges.set(key, { lastSeenMs: nowMs, eventType: event.event_type, eventCount: 1 });
           } else {
             edge.lastSeenMs = nowMs;
             edge.eventType = event.event_type;
+            edge.eventCount += 1;
           }
           let neighbors = degree.get(src);
           if (neighbors === undefined) {
@@ -339,16 +343,33 @@ export function NetworkGraph({
             degree.set(dst, neighbors);
           }
           neighbors.add(src);
-          if (event.received_at_ms >= nowMs - TRAVEL_MAX_MS) {
-            dots.push({
-              src,
-              dst,
-              startMs: nowMs,
-              durationMs: TRAVEL_MIN_MS + (hashString(`${src}${dst}${nowMs % 1000}`) % (TRAVEL_MAX_MS - TRAVEL_MIN_MS)),
-              eventType: event.event_type,
-            });
-          }
+if (event.received_at_ms >= nowMs - TRAVEL_MAX_MS) {
+          dots.push({
+            src,
+            dst,
+            startMs: nowMs,
+            durationMs: TRAVEL_MIN_MS + (hashString(`${src}${dst}${nowMs % 1000}`) % (TRAVEL_MAX_MS - TRAVEL_MIN_MS)),
+            eventType: event.event_type,
+            positions: [],
+          });
         }
+      }
+
+      // ---- recent event count for pulse triggering ----
+      const recentEventCount = eventBufferRef.current.filter(
+        (e) => nowMs - e.received_at_ms <= 1000
+      ).length;
+
+      // ---- local node transmit-pulse (activity-driven, not fixed-interval) ----
+      if (recentEventCount > 0 && nowMs - lastPulseAddMs > 800) {
+        pulses.push({ ip: local?.ip ?? "", startMs: nowMs, durationMs: 1500 });
+        lastPulseAddMs = nowMs;
+      }
+      if (recentEventCount === 0) {
+        // no need to add pulses when idle; existing ones will fade out naturally
+      }
+
+      // ---- prune ----
       }
 
       // ---- prune ----
@@ -385,6 +406,20 @@ export function NetworkGraph({
         if (!node.isLocal) {
           node.x = Math.min(width - 30, Math.max(30, node.x));
           node.y = Math.min(height - 30, Math.max(30, node.y));
+        }
+      }
+
+      // ---- radar range rings (structural framing on local node) ----
+      if (local !== undefined) {
+        const maxRadius = Math.min(width, height) * 0.45;
+        const ringStep = maxRadius / 3;
+        ctx.strokeStyle = "rgba(148, 163, 184, 0.08)";
+        ctx.lineWidth = 1;
+        for (let i = 1; i <= 3; i++) {
+          const r = i * ringStep;
+          ctx.beginPath();
+          ctx.arc(local.x, local.y, r, 0, Math.PI * 2);
+          ctx.stroke();
         }
       }
 
@@ -425,15 +460,34 @@ export function NetworkGraph({
           dots.splice(i, 1);
           continue;
         }
-        const x = a.x + (b.x - a.x) * t;
-        const y = a.y + (b.y - a.y) * t;
+        // sample current position into the trail buffer
+        const curX = a.x + (b.x - a.x) * t;
+        const curY = a.y + (b.y - a.y) * t;
+        dot.positions.push(curX, curY);
+        // keep only last 6 position pairs (12 numbers = 6 points)
+        if (dot.positions.length > 12) {
+          dot.positions.splice(0, dot.positions.length - 12);
+        }
+        // draw fading trail from stored positions
+        ctx.globalAlpha = 0.25;
+        for (let j = 0; j < dot.positions.length; j += 2) {
+          const px = dot.positions[j];
+          const py = dot.positions[j + 1];
+          const ageRatio = j / dot.positions.length;
+          const radius = 2.4 * (1 - ageRatio * 0.5);
+          ctx.fillStyle = colorForEventType(dot.eventType);
+          ctx.beginPath();
+          ctx.arc(px, py, radius, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        // draw current point on top
+        ctx.globalAlpha = 1;
         ctx.fillStyle = colorForEventType(dot.eventType);
         ctx.beginPath();
-        ctx.arc(x, y, 2.4, 0, Math.PI * 2);
+        ctx.arc(curX, curY, 2.4, 0, Math.PI * 2);
         ctx.fill();
-        ctx.globalAlpha = 0.25;
         ctx.beginPath();
-        ctx.arc(x, y, 5, 0, Math.PI * 2);
+        ctx.arc(curX, curY, 5, 0, Math.PI * 2);
         ctx.fill();
         ctx.globalAlpha = 1;
       }
@@ -461,17 +515,22 @@ export function NetworkGraph({
           ctx.arc(node.x, node.y, LOCAL_RADIUS + 3, 0, Math.PI * 2);
           ctx.stroke();
         }
-        let label = node.ip;
-        if (redacted && label !== "unknown") {
-          label = redactIp(label);
+        // Always-visible label: show IP for nodes seen within last 5 seconds,
+        // tied to the node's fade (fades with it). Omit for older nodes to reduce clutter.
+        const labelAge = nowMs - node.lastSeenMs;
+        if (labelAge <= 5_000) {
+          let label = node.ip;
+          if (redacted && label !== "unknown") {
+            label = redactIp(label);
+          }
+          if (label.length > 18) {
+            label = `${label.slice(0, 17)}…`;
+          }
+          ctx.fillStyle = `rgba(228, 231, 235, ${(0.5 * fade).toFixed(3)})`;
+          ctx.font = "9px JetBrains Mono, monospace";
+          ctx.textAlign = "center";
+          ctx.fillText(label, node.x, node.y - radius - 4);
         }
-        if (label.length > 18) {
-          label = `${label.slice(0, 17)}…`;
-        }
-        ctx.fillStyle = `rgba(228, 231, 235, ${(0.5 * fade).toFixed(3)})`;
-        ctx.font = "9px JetBrains Mono, monospace";
-        ctx.textAlign = "center";
-        ctx.fillText(label, node.x, node.y + radius + 11);
       }
 
       // ---- pulses ----

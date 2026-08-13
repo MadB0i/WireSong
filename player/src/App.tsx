@@ -347,29 +347,28 @@ function App() {
           <SpectrumAnalyzer />
         </section>
 
-        <section className="mt-3 grid grid-cols-2 gap-2 sm:max-w-xs">
-          <div className="glass rounded-sm px-4 py-2.5">
-            <p className="text-[10px] font-semibold uppercase tracking-widest text-zinc-500">
-              total events
-            </p>
-            <p
-              data-testid="total"
-              className="mt-0.5 font-mono text-2xl font-semibold text-zinc-50 tabular-nums"
-            >
-              {total}
-            </p>
+<section className="mt-3 border-t border-white/5 pt-2.5">
+          <div className="flex items-center gap-2">
+            <div className="flex flex-col items-start gap-0.5 text-[10px] font-semibold uppercase tracking-widest text-zinc-50">
+              <span>total events</span>
+              <p
+                data-testid="total"
+                className="font-mono text-2xl font-semibold text-zinc-50 tabular-nums"
+              >
+                {total}
+              </p>
+            </div>
+            <div className="flex flex-col items-start gap-0.5 ml-4 text-[10px] font-semibold uppercase tracking-widest text-zinc-50">
+              <span>events/sec</span>
+              <p
+                data-testid="per-second"
+                className="font-mono text-2xl font-semibold text-zinc-50 tabular-nums"
+              >
+                {perSecond}
+              </p>
+            </div>
           </div>
-          <div className="glass rounded-sm px-4 py-2.5">
-            <p className="text-[10px] font-semibold uppercase tracking-widest text-zinc-500">
-              events / sec
-            </p>
-            <p
-              data-testid="per-second"
-              className="mt-0.5 font-mono text-2xl font-semibold text-zinc-50 tabular-nums"
-            >
-              {perSecond}
-            </p>
-          </div>
+          <div className="h-px bg-white/20 flex-1 mx-4"></div>
         </section>
 
         <section className="glass mt-3 rounded-sm p-2.5">

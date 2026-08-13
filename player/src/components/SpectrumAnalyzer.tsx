@@ -86,7 +86,7 @@ export function SpectrumAnalyzer(): JSX.Element {
     <div
       ref={containerRef}
       data-testid="spectrum-analyzer"
-      className="w-full overflow-hidden rounded-sm border border-white/10 bg-black/60"
+      className="w-full overflow-hidden"
     >
       <canvas ref={canvasRef} />
     </div>

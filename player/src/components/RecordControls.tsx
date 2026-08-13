@@ -73,7 +73,7 @@ export function RecordControls(): ReactElement {
   return (
     <div
       data-testid="record-controls"
-      className="flex items-center gap-2 rounded-sm border border-white/10 bg-black/40 px-2.5 py-1"
+      className="flex items-center gap-2"
     >
       <button
         data-testid="record-button"

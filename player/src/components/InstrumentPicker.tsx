@@ -99,7 +99,7 @@ export function InstrumentPicker({ onPackChange }: InstrumentPickerProps): React
   return (
     <div
       data-testid="instrument-picker"
-      className="grid gap-2 sm:grid-cols-4"
+      className="flex items-center gap-2 rounded-sm border border-white/20 bg-black/30 px-3 py-1.5"
     >
       {PACK_META.map(({ name, label, tagline, icon }) => {
         const isActive = activePack === name;
