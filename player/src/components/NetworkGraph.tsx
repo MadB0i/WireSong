@@ -321,7 +321,7 @@ export function NetworkGraph({
         }
         upsertNode(nodes, src, nowMs, event.pan > 0.5, recent, container);
         upsertNode(nodes, dst, nowMs, event.pan < -0.5, recent, container);
-        if (recent) {
+if (recent) {
           const key = edgeKeyFor(src, dst);
           const edge = edges.get(key);
           if (edge === undefined) {
