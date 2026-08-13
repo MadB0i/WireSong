@@ -1,8 +1,20 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { initAudio, isAudioStarted, playNoteEvent } from "./audio/synth";
+import {
+  initAudio,
+  isAudioStarted,
+  playNoteEvent,
+  setAudioMuted,
+} from "./audio/synth";
 import { startReplay } from "./replay";
 import { InstrumentPicker } from "./components/InstrumentPicker";
-import { PianoRoll, type TimestampedNoteEvent } from "./components/PianoRoll";
+import {
+  PianoRoll,
+  EVENT_TYPE_COLORS,
+  type TimestampedNoteEvent,
+} from "./components/PianoRoll";
+import { PacketFeed } from "./components/PacketFeed";
+import { SpectrumAnalyzer } from "./components/SpectrumAnalyzer";
+import { AmbientBackground } from "./components/AmbientBackground";
 import { RecordControls } from "./components/RecordControls";
 import {
   connectWireSong,
@@ -12,26 +24,41 @@ import {
 } from "./ws";
 
 const DEFAULT_URL = "ws://localhost:3000/ws";
-const LOG_SIZE = 20;
 const BANNER_MS = 3000;
 
 const STATUS_COLORS: Record<WireSongStatus, string> = {
   connecting: "bg-amber-400",
-  open: "bg-emerald-500",
+  open: "bg-emerald-400",
   closed: "bg-zinc-600",
   error: "bg-red-500",
 };
 
+const LEGEND_EVENTS = [
+  "tcp_syn",
+  "tcp_synack",
+  "tcp_rst",
+  "dns_query",
+  "http_data",
+  "udp",
+  "icmp",
+  "port_scan_alert",
+];
+
+const PRIMARY_BTN =
+  "inline-flex items-center justify-center gap-2 rounded-sm border px-3 py-1.5 text-sm font-semibold transition-all duration-150 disabled:opacity-40 disabled:cursor-not-allowed active:scale-[0.98]";
+
+const EQ_BARS = [0, 1, 2, 3, 4];
+
 function App() {
   const [url, setUrl] = useState(DEFAULT_URL);
   const [status, setStatus] = useState<WireSongStatus>("closed");
-  const [log, setLog] = useState<NoteEvent[]>([]);
   const [total, setTotal] = useState(0);
   const [perSecond, setPerSecond] = useState(0);
   const [banner, setBanner] = useState<{ message: string; id: number } | null>(
     null,
   );
   const [audioOn, setAudioOn] = useState(false);
+  const [muted, setMuted] = useState(false);
   const [replayRunning, setReplayRunning] = useState(false);
   const connectionRef = useRef<WireSongConnection | null>(null);
   const timestampsRef = useRef<number[]>([]);
@@ -43,12 +70,21 @@ function App() {
     void initAudio().then(() => setAudioOn(isAudioStarted()));
   }, []);
 
+  const toggleAudio = useCallback(() => {
+    if (!audioOn) {
+      enableAudio();
+      return;
+    }
+    const next = !muted;
+    setAudioMuted(next);
+    setMuted(next);
+  }, [audioOn, muted, enableAudio]);
+
   const handleNoteEvent = useCallback((event: NoteEvent) => {
     playNoteEvent(event);
     eventBufferRef.current.push({ ...event, received_at_ms: performance.now() });
     timestampsRef.current.push(Date.now());
     setTotal((t) => t + 1);
-    setLog((prev) => [event, ...prev].slice(0, LOG_SIZE));
   }, []);
 
   const showBanner = useCallback((message: string) => {
@@ -59,7 +95,14 @@ function App() {
     bannerTimerRef.current = setTimeout(() => setBanner(null), BANNER_MS);
   }, []);
 
+  const stopReplayDemo = useCallback(() => {
+    replayRef.current?.stop();
+    replayRef.current = null;
+    setReplayRunning(false);
+  }, []);
+
   const startReplayDemo = useCallback(() => {
+    enableAudio();
     replayRef.current?.stop();
     replayRef.current = startReplay({
       onNoteEvent: handleNoteEvent,
@@ -70,16 +113,23 @@ function App() {
       },
     });
     setReplayRunning(true);
-  }, [handleNoteEvent, showBanner]);
+  }, [enableAudio, handleNoteEvent, showBanner]);
 
   const connect = useCallback(() => {
+    enableAudio();
     connectionRef.current?.close();
     connectionRef.current = connectWireSong(url, {
       onNoteEvent: handleNoteEvent,
       onControlMessage: (msg) => showBanner(msg.message),
       onStatusChange: setStatus,
     });
-  }, [url, handleNoteEvent, showBanner]);
+  }, [enableAudio, url, handleNoteEvent, showBanner]);
+
+  const disconnect = useCallback(() => {
+    connectionRef.current?.close();
+    connectionRef.current = null;
+    setStatus("closed");
+  }, []);
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -102,91 +152,262 @@ function App() {
     };
   }, []);
 
+  const audioLabel = !audioOn
+    ? "🔊 Enable Audio"
+    : muted
+      ? "🔈 Unmute Audio"
+      : "🔇 Mute Audio";
+
   return (
-    <div className="min-h-screen bg-zinc-950 text-zinc-100 p-6 font-mono">
-      <h1 className="text-xl font-bold mb-4">WireSong</h1>
+    <div className="relative min-h-screen text-zinc-100">
+      <div className="app-backdrop" />
+      <div className="app-grid" />
+      <AmbientBackground />
 
-      <div className="flex items-center gap-2 mb-4">
-        <span className={`h-3 w-3 rounded-full ${STATUS_COLORS[status]}`} />
-        <span data-testid="status">{status}</span>
-        {replayRunning && (
-          <span
-            data-testid="replay-indicator"
-            className="rounded bg-fuchsia-800 px-2 py-0.5 text-xs"
+      <div className="relative z-10 mx-auto max-w-4xl px-6 py-6">
+        <header className="mb-4 flex items-center gap-3">
+          <svg
+            viewBox="0 0 44 26"
+            className="h-8 w-14 shrink-0"
+            fill="none"
+            aria-hidden
           >
-            Replay Mode
+            <rect
+              x="1"
+              y="1"
+              width="42"
+              height="24"
+              rx="2"
+              stroke="rgba(232, 234, 238, 0.35)"
+              strokeWidth="1"
+            />
+            <path
+              d="M3 13h8v-5h4v8h4v-6h6v7h4v-4h4v4h4v-6h4"
+              stroke="#34d399"
+              strokeWidth="1.4"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
+          <div>
+            <h1 className="text-xl font-extrabold tracking-tight">
+              Wire<span className="text-emerald-400">Song</span>
+            </h1>
+            <p className="text-xs text-zinc-500">
+              your network traffic, as a generative soundscape
+            </p>
+          </div>
+          <div className="ml-auto flex items-end gap-1" data-testid="equalizer">
+            {EQ_BARS.map((i) => (
+              <span
+                key={i}
+                className="w-1.5 rounded-sm bg-gradient-to-t from-emerald-500/50 to-emerald-300 transition-[height] duration-300 ease-out"
+                style={{
+                  height: `${Math.min(96, 14 + perSecond * 16 + i * 3)}px`,
+                }}
+              />
+            ))}
+          </div>
+        </header>
+
+        <div className="mb-3 flex items-center gap-3">
+          <span className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-black/40 px-3 py-1 text-xs font-medium">
+            <span
+              className={`status-dot h-2 w-2 rounded-full ${STATUS_COLORS[status]}`}
+            />
+            <span data-testid="status" className="font-mono text-zinc-200">
+              {status}
+            </span>
           </span>
-        )}
-      </div>
-
-      <div className="flex gap-2 mb-4">
-        <input
-          data-testid="url-input"
-          value={url}
-          onChange={(e) => setUrl(e.target.value)}
-          className="flex-1 bg-zinc-900 border border-zinc-700 rounded px-3 py-2"
-        />
-        <button
-          data-testid="connect-button"
-          onClick={connect}
-          disabled={replayRunning}
-          className="bg-emerald-700 hover:bg-emerald-600 rounded px-4 py-2 disabled:opacity-40 disabled:cursor-not-allowed"
-        >
-          Connect
-        </button>
-        <button
-          data-testid="replay-button"
-          onClick={startReplayDemo}
-          disabled={replayRunning || status === "open" || status === "connecting"}
-          className="bg-fuchsia-800 hover:bg-fuchsia-700 rounded px-4 py-2 disabled:opacity-40 disabled:cursor-not-allowed"
-        >
-          ▶ Try Live Demo (no backend needed)
-        </button>
-        <InstrumentPicker />
-        <RecordControls />
-        {!audioOn && (
-          <button
-            data-testid="audio-button"
-            onClick={enableAudio}
-            className="bg-sky-700 hover:bg-sky-600 rounded px-4 py-2"
-          >
-            🔊 Enable Audio
-          </button>
-        )}
-        <span data-testid="audio-status" className="self-center">
-          Audio: {audioOn ? "on" : "off"}
-        </span>
-      </div>
-
-      <div className="flex gap-6 mb-4">
-        <span>
-          total: <span data-testid="total">{total}</span>
-        </span>
-        <span>
-          events/sec: <span data-testid="per-second">{perSecond}</span>
-        </span>
-      </div>
-
-      {banner !== null && (
-        <div
-          key={banner.id}
-          data-testid="control-banner"
-          className="bg-amber-500 text-black rounded px-3 py-2 mb-4"
-        >
-          {banner.message}
+          {replayRunning && (
+            <span
+              data-testid="replay-indicator"
+              className="inline-flex items-center gap-1.5 rounded-full border border-emerald-400/40 bg-emerald-500/10 px-3 py-1 text-xs font-semibold text-emerald-300"
+            >
+              <span className="status-dot h-1.5 w-1.5 rounded-full bg-emerald-400" />
+              Replay Mode
+            </span>
+          )}
         </div>
-      )}
 
-      <PianoRoll eventBufferRef={eventBufferRef} />
+        <section className="glass rounded-sm p-3">
+          <div className="flex flex-wrap items-center gap-2">
+            <input
+              data-testid="url-input"
+              value={url}
+              onChange={(e) => setUrl(e.target.value)}
+              className="min-w-[240px] flex-1 rounded-sm border border-white/10 bg-black/40 px-3 py-1.5 font-mono text-xs text-zinc-200 placeholder-zinc-600 transition focus:border-emerald-400/50 focus:outline-none focus:ring-1 focus:ring-emerald-400/30"
+            />
+            <button
+              data-testid="connect-button"
+              onClick={connect}
+              disabled={replayRunning}
+              className={`${PRIMARY_BTN} border-emerald-400 bg-emerald-400 text-zinc-950 hover:brightness-110`}
+            >
+              <svg
+                viewBox="0 0 24 24"
+                className="h-4 w-4"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.4"
+                strokeLinecap="round"
+              >
+                <path d="M5 12h14M13 6l6 6-6 6" />
+              </svg>
+              Connect
+            </button>
+            {(status === "open" || status === "connecting") && (
+              <button
+                data-testid="disconnect-button"
+                onClick={disconnect}
+                className={`${PRIMARY_BTN} border-red-500/40 bg-red-500/10 text-red-300 hover:bg-red-500/20`}
+              >
+                <svg
+                  viewBox="0 0 24 24"
+                  className="h-4 w-4"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2.4"
+                  strokeLinecap="round"
+                >
+                  <path d="M5 12h14" />
+                </svg>
+                Disconnect
+              </button>
+            )}
+            <button
+              data-testid="replay-button"
+              onClick={startReplayDemo}
+              disabled={replayRunning || status === "open" || status === "connecting"}
+              className={`${PRIMARY_BTN} border-emerald-400/60 bg-emerald-500/10 text-emerald-300 hover:bg-emerald-500/20`}
+            >
+              ▶ Try Live Demo
+            </button>
+            {replayRunning && (
+              <button
+                data-testid="stop-replay-button"
+                onClick={stopReplayDemo}
+                className={`${PRIMARY_BTN} border-red-500/40 bg-red-500/10 text-red-300 hover:bg-red-500/20`}
+              >
+                ■ Stop Demo
+              </button>
+            )}
+          </div>
 
-      <ul className="space-y-1" data-testid="event-log">
-        {log.map((event, index) => (
-          <li key={log.length - index} className="text-sm">
-            <span className="text-zinc-500">{event.event_type}</span>{" "}
-            pitch={event.pitch} pan={event.pan.toFixed(2)} size={event.size_bytes}
-          </li>
-        ))}
-      </ul>
+          <div className="mt-2 flex flex-wrap items-center gap-2 border-t border-white/5 pt-2">
+            <div className="ml-auto flex items-center gap-2">
+              <RecordControls />
+              <button
+                data-testid="audio-button"
+                onClick={toggleAudio}
+                className={
+                  audioOn && !muted
+                    ? `${PRIMARY_BTN} border-white/10 bg-white/5 text-zinc-300 hover:bg-white/10`
+                    : `${PRIMARY_BTN} border-emerald-400 bg-emerald-400 text-zinc-950 hover:brightness-110`
+                }
+              >
+                {audioLabel}
+              </button>
+              <span
+                data-testid="audio-status"
+                className="rounded-full border border-white/10 bg-black/40 px-3 py-1 font-mono text-[11px] text-zinc-400"
+              >
+                Audio:{" "}
+                <span className="text-zinc-200">
+                  {audioOn ? (muted ? "on · muted" : "on") : "off"}
+                </span>
+              </span>
+            </div>
+          </div>
+
+          {banner !== null && (
+            <div
+              key={banner.id}
+              data-testid="control-banner"
+              className="banner-in mt-3 rounded-sm border border-amber-400/40 bg-amber-500/15 px-3 py-2 font-mono text-xs text-amber-200"
+            >
+              {banner.message}
+            </div>
+          )}
+
+          <div className="mt-3 border-t border-white/5 pt-2.5">
+            <div className="mb-2 flex items-center gap-2">
+              <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
+              <h2 className="text-[11px] font-semibold uppercase tracking-widest text-zinc-500">
+                Sound pack
+              </h2>
+            </div>
+            <InstrumentPicker />
+          </div>
+        </section>
+
+        <section className="glass mt-3 rounded-sm p-3">
+          <SpectrumAnalyzer />
+        </section>
+
+        <section className="mt-3 grid grid-cols-2 gap-2 sm:max-w-xs">
+          <div className="glass rounded-sm px-4 py-2.5">
+            <p className="text-[10px] font-semibold uppercase tracking-widest text-zinc-500">
+              total events
+            </p>
+            <p
+              data-testid="total"
+              className="mt-0.5 font-mono text-2xl font-semibold text-zinc-50 tabular-nums"
+            >
+              {total}
+            </p>
+          </div>
+          <div className="glass rounded-sm px-4 py-2.5">
+            <p className="text-[10px] font-semibold uppercase tracking-widest text-zinc-500">
+              events / sec
+            </p>
+            <p
+              data-testid="per-second"
+              className="mt-0.5 font-mono text-2xl font-semibold text-zinc-50 tabular-nums"
+            >
+              {perSecond}
+            </p>
+          </div>
+        </section>
+
+        <section className="glass mt-3 rounded-sm p-2.5">
+          <header className="flex items-center gap-2 px-2 pb-2 pt-0.5">
+            <span className="status-dot h-1.5 w-1.5 rounded-full bg-emerald-400" />
+            <h2 className="text-[11px] font-semibold uppercase tracking-widest text-zinc-500">
+              Piano roll
+            </h2>
+            <span className="ml-auto font-mono text-[11px] text-zinc-600">
+              8s window · pentatonic
+            </span>
+          </header>
+          <PianoRoll eventBufferRef={eventBufferRef} />
+          <footer
+            data-testid="event-legend"
+            className="flex flex-wrap items-center gap-x-4 gap-y-1 border-t border-white/5 px-2 pt-1.5"
+          >
+            {LEGEND_EVENTS.map((eventType) => (
+              <span
+                key={eventType}
+                className="inline-flex items-center gap-1.5 font-mono text-[10px] text-zinc-500"
+              >
+                <span
+                  className="h-1.5 w-1.5 rounded-full"
+                  style={{ backgroundColor: EVENT_TYPE_COLORS[eventType] }}
+                />
+                {eventType}
+              </span>
+            ))}
+          </footer>
+        </section>
+
+        <section className="glass mt-3 rounded-sm">
+          <PacketFeed eventBufferRef={eventBufferRef} />
+        </section>
+
+        <footer className="mt-5 text-center font-mono text-[11px] text-zinc-600">
+          WireSong · network sonification · MIT
+        </footer>
+      </div>
     </div>
   );
 }

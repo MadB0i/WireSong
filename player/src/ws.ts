@@ -6,6 +6,10 @@ export interface NoteEvent {
   duration_ms: number;
   pan: number;
   size_bytes: number;
+  src_ip?: string;
+  dst_ip?: string;
+  src_port?: number;
+  dst_port?: number;
 }
 
 export interface ControlMessage {

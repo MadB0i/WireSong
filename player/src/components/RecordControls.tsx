@@ -73,7 +73,7 @@ export function RecordControls(): ReactElement {
   return (
     <div
       data-testid="record-controls"
-      className="flex items-center gap-2 rounded border border-zinc-700 bg-zinc-900 px-3 py-1"
+      className="flex items-center gap-2 rounded-sm border border-white/10 bg-black/40 px-2.5 py-1"
     >
       <button
         data-testid="record-button"
@@ -81,13 +81,16 @@ export function RecordControls(): ReactElement {
         disabled={!isAudioStarted()}
         className={
           recording
-            ? "rounded bg-red-700 hover:bg-red-600 px-3 py-1 text-sm"
-            : "rounded bg-zinc-700 hover:bg-zinc-600 px-3 py-1 text-sm disabled:opacity-40 disabled:cursor-not-allowed"
+            ? "record-pulse rounded-sm bg-red-600 px-2.5 py-1 text-xs font-semibold text-white transition hover:bg-red-500"
+            : "rounded-sm border border-white/10 px-2.5 py-1 text-xs font-medium text-zinc-300 transition hover:bg-zinc-800 hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
         }
       >
         {recording ? "■ Stop" : "● Record"}
       </button>
-      <span data-testid="record-elapsed" className="text-sm text-zinc-300 tabular-nums">
+      <span
+        data-testid="record-elapsed"
+        className="font-mono text-[11px] text-zinc-400 tabular-nums"
+      >
         {recording ? formatElapsed(elapsedMs) : savedName !== null ? `Saved: ${savedName}` : "idle"}
       </span>
     </div>

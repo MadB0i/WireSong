@@ -9,6 +9,10 @@ const CANVAS_HEIGHT = 200;
 const MIN_BAR_WIDTH = 2;
 // Mirrors capture/instruments/ambient.toml's [scale] notes — keep in sync.
 const SCALE_NOTES = [60, 62, 64, 67, 69, 72, 74, 76, 79, 81];
+const JITTER_MAX_PX = 6;
+const MIN_VELOCITY_HEIGHT = 4;
+const MAX_VELOCITY_HEIGHT = 10;
+const NOTE_NAMES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
 
 export type TimestampedNoteEvent = NoteEvent & { received_at_ms: number };
 
@@ -23,6 +27,8 @@ const COLORS_BY_EVENT: Record<string, string> = {
   port_scan_alert: "#ef4444",
 };
 const FALLBACK_COLOR = "#94a3b8";
+
+export const EVENT_TYPE_COLORS: Record<string, string> = COLORS_BY_EVENT;
 const ALARM_BAND_RGBA = "rgba(239, 68, 68, 0.25)";
 const NOW_LINE_RGBA = "rgba(251, 191, 36, 0.9)";
 
@@ -39,6 +45,30 @@ export function timeToX(ageMs: number, canvasWidth: number): number {
 
 export function colorForEventType(eventType: string): string {
   return COLORS_BY_EVENT[eventType] ?? FALLBACK_COLOR;
+}
+
+export function midiToNoteName(pitch: number): string {
+  const name = NOTE_NAMES[pitch % 12];
+  const octave = Math.floor(pitch / 12) - 1;
+  return `${name}${octave}`;
+}
+
+export function jitterFor(event: TimestampedNoteEvent): number {
+  const key = `${event.event_type}:${event.received_at_ms}`;
+  let hash = 0;
+  for (let i = 0; i < key.length; i++) {
+    hash = (hash * 31 + key.charCodeAt(i)) | 0;
+  }
+  const signed = ((hash % (JITTER_MAX_PX * 2 + 1)) + (JITTER_MAX_PX * 2 + 1)) % (JITTER_MAX_PX * 2 + 1);
+  return signed - JITTER_MAX_PX;
+}
+
+export function barHeightForVelocity(velocity: number): number {
+  const clamped = Math.min(1, Math.max(0, velocity));
+  return (
+    MIN_VELOCITY_HEIGHT +
+    clamped * (MAX_VELOCITY_HEIGHT - MIN_VELOCITY_HEIGHT)
+  );
 }
 
 export function pruneExpired(
@@ -100,6 +130,10 @@ export function PianoRoll({ eventBufferRef }: PianoRollProps): JSX.Element {
         ctx.moveTo(0, y);
         ctx.lineTo(width, y);
         ctx.stroke();
+        ctx.fillStyle = "rgba(255, 255, 255, 0.28)";
+        ctx.font = "10px JetBrains Mono, monospace";
+        ctx.textBaseline = "middle";
+        ctx.fillText(midiToNoteName(note), 4, y);
       }
 
       ctx.strokeStyle = NOW_LINE_RGBA;
@@ -119,13 +153,14 @@ export function PianoRoll({ eventBufferRef }: PianoRollProps): JSX.Element {
           ctx.fillText("SCAN", x + 4, 14);
           continue;
         }
-        const y = pitchToY(event.pitch, height);
+        const y = pitchToY(event.pitch, height) + jitterFor(event);
         const barWidth = Math.max(
           MIN_BAR_WIDTH,
           (event.duration_ms / VISIBLE_WINDOW_MS) * width,
         );
+        const barHeight = barHeightForVelocity(event.velocity);
         ctx.fillStyle = colorForEventType(event.event_type);
-        roundRect(ctx, x - barWidth / 2, y - BAR_HEIGHT / 2, barWidth, BAR_HEIGHT, 2);
+        roundRect(ctx, x - barWidth / 2, y - barHeight / 2, barWidth, barHeight, 2);
         ctx.fill();
       }
     };
@@ -152,7 +187,7 @@ export function PianoRoll({ eventBufferRef }: PianoRollProps): JSX.Element {
     <div
       ref={containerRef}
       data-testid="piano-roll"
-      className="w-full rounded border border-zinc-800 bg-zinc-900/40 overflow-hidden"
+      className="w-full overflow-hidden rounded-xl bg-black/40"
     >
       <canvas ref={canvasRef} />
     </div>

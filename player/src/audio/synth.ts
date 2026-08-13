@@ -5,7 +5,7 @@ import type { NoteEvent } from "../ws";
 // sonification (this is the only backend config; packs are a frontend
 // concept). The chiptune and orchestral packs are distinct timbre tables
 // that do NOT need to match ambient.toml, by design.
-export type PackName = "ambient" | "chiptune" | "orchestral";
+export type PackName = "ambient" | "chiptune" | "orchestral" | "ensemble";
 
 interface VoiceSpec {
   build: (freq: number, event: NoteEvent) => Tone.ToneAudioNode;
@@ -37,6 +37,20 @@ export function isAudioStarted(): boolean {
   return audioStarted;
 }
 
+let muted = false;
+
+export function isAudioMuted(): boolean {
+  return muted;
+}
+
+export function setAudioMuted(next: boolean): void {
+  muted = next;
+  const bus = getMasterBus();
+  const now = Tone.now();
+  bus.gain.cancelScheduledValues(now);
+  bus.gain.setTargetAtTime(next ? 0 : 1, now, 0.05);
+}
+
 let activeChains = 0;
 
 export function getActiveChainCount(): number {
@@ -57,14 +71,15 @@ function scheduleDispose(disposeAfterMs: number, nodes: Tone.ToneAudioNode[]): v
 const ALARM_OFFSETS = [0, 3, 6, 7];
 
 function scheduleAlarmArpeggio(
-  synth: Tone.Synth | Tone.FMSynth,
+  synth: Tone.Synth | Tone.FMSynth | Tone.MonoSynth | Tone.PluckSynth,
   event: NoteEvent,
   start: number,
+  freqScale = 1,
 ): void {
   const stepSeconds = Math.max(event.duration_ms / 4, 30) / 1000;
   ALARM_OFFSETS.forEach((offset, index) => {
     synth.triggerAttackRelease(
-      midiToFrequency(event.pitch + offset),
+      midiToFrequency(event.pitch + offset) * freqScale,
       stepSeconds,
       start + index * stepSeconds,
     );
@@ -286,6 +301,64 @@ function buildOrchBrassStab(_freq: number, event: NoteEvent): Tone.FMSynth {
   return synth;
 }
 
+function buildGuitar(freq: number): Tone.PluckSynth {
+  const synth = new Tone.PluckSynth({ resonance: 0.9, dampening: 3000 });
+  synth.triggerAttack(freq);
+  return synth;
+}
+
+function buildGuitarMuted(freq: number): Tone.Gain {
+  const synth = new Tone.PluckSynth({ resonance: 0.9, dampening: 3000 });
+  synth.triggerAttack(freq);
+  const filter = new Tone.Filter(800, "lowpass");
+  const gate = new Tone.Gain(1);
+  const now = Tone.now();
+  gate.gain.setValueAtTime(1, now);
+  gate.gain.setTargetAtTime(0.0001, now, 0.012);
+  synth.connect(filter);
+  filter.connect(gate);
+  return gate;
+}
+
+function buildGuitarStaccato(freq: number): Tone.Gain {
+  const synth = new Tone.PluckSynth({ resonance: 0.9, dampening: 2600 });
+  synth.triggerAttack(freq);
+  const gate = new Tone.Gain(1);
+  const now = Tone.now();
+  gate.gain.setValueAtTime(1, now);
+  gate.gain.setTargetAtTime(0.0001, now, 0.02);
+  synth.connect(gate);
+  return gate;
+}
+
+function buildBass(freq: number): Tone.MonoSynth {
+  const synth = new Tone.MonoSynth({
+    oscillator: { type: "triangle" },
+    envelope: { attack: 0.05, decay: 0.2, sustain: 0.5, release: 0.4 },
+  });
+  synth.triggerAttack(freq);
+  return synth;
+}
+
+function buildBassOctave(freq: number, _event: NoteEvent): Tone.MonoSynth {
+  return buildBass(freq / 2);
+}
+
+function buildEnsembleAlarm(_freq: number, event: NoteEvent): Tone.Gain {
+  const out = new Tone.Gain(1);
+  const guitar = new Tone.PluckSynth({ resonance: 0.9, dampening: 3000 });
+  const bass = new Tone.MonoSynth({
+    oscillator: { type: "triangle" },
+    envelope: { attack: 0.01, decay: 0.15, sustain: 0.6, release: 0.3 },
+  });
+  guitar.connect(out);
+  bass.connect(out);
+  const start = Tone.now() + 0.01;
+  scheduleAlarmArpeggio(guitar, event, start);
+  scheduleAlarmArpeggio(bass, event, start, 0.5);
+  return out;
+}
+
 export const PACKS: Record<PackName, Record<string, VoiceSpec>> = {
   ambient: {
     tcp_syn: { build: buildPluck },
@@ -316,6 +389,16 @@ export const PACKS: Record<PackName, Record<string, VoiceSpec>> = {
     udp: { build: buildOrchPizz },
     icmp: { build: buildOrchFlute },
     port_scan_alert: { build: buildOrchBrassStab, isAlarmVoice: true },
+  },
+  ensemble: {
+    tcp_syn: { build: buildGuitar },
+    tcp_synack: { build: buildGuitar },
+    tcp_rst: { build: buildGuitarMuted },
+    dns_query: { build: buildBell },
+    http_data: { build: buildBassOctave },
+    udp: { build: buildGuitarStaccato },
+    icmp: { build: buildPad },
+    port_scan_alert: { build: buildEnsembleAlarm, isAlarmVoice: true },
   },
 };
 
