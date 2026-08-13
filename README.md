@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/MadB0i/WireSong/actions/workflows/ci.yml/badge.svg)](https://github.com/MadB0i/WireSong/actions/workflows/ci.yml)
 
-WireSong turns live network traffic into a real-time generative soundscape. Packets are captured and classified in Rust, quantized onto a pentatonic scale so that even heavy traffic sounds harmonious, and streamed to a browser that synthesizes each packet as an instrument voice — so a busy network literally hums along as it works. Anomalies are surfaced the same way your ears would want them: when a port scan is detected, a distinct four-note alarm cuts through the mix, plus a red band on a scrolling piano-roll visualization. It is sonification as an alerting mechanism, not just another dashboard.
+WireSong turns live network traffic into a real-time generative soundscape. Packets are captured and classified in Rust, quantized onto a pentatonic scale so that even heavy traffic sounds harmonious, and streamed to a browser that synthesizes each packet as an instrument voice — so a busy network literally hums along as it works. Anomalies are surfaced the same way your ears would want them: when a port scan is detected, a distinct four-note alarm cuts through the mix, plus a red band on a scrolling piano-roll visualization. It is sonification as an alerting mechanism, not just another dashboard. And it isn't audio-only anymore: a live packet feed, a real FFT spectrum, and a background layer that reacts to the mix give the same traffic a picture as well as a voice.
 
 ## Demo
 
@@ -22,15 +22,24 @@ packets ──► pcap capture ──► classify ──► port-scan detector
                                             │
                                     WebSocket (ws://127.0.0.1:3000/ws)
                                             │
-                              browser: Tone.js synth per event
-                                        │            │
-                             Instrument Packs     shared master bus
-                             (timbre only)        └─► speakers
-                                                      └─► Tone.Recorder
-                                                          (.webm download)
+                                 browser: NoteEvent stream
+                                 │               │
+                    Tone.js synth per event   PianoRoll + PacketFeed
+                                 │             (canvas + event log)
+                    Instrument Packs (timbre only)
+                                 │
+                             shared master bus
+                                │         │
+                                │         ├─► speakers
+                                │         └─► Tone.Recorder (.webm download)
+                                └─► analyser tap (128-bin FFT)
+                                            │
+                                SpectrumAnalyzer · AmbientBackground
 ```
 
-The pipeline: a Rust backend captures raw packets with the `pcap` crate, classifies them into event types (TCP SYN/SYN-ACK/RST, DNS, HTTP, UDP, ICMP), feeds SYN packets into a port-scan detector, and maps every event to a musical `NoteEvent` (pitch, velocity, duration, pan). NoteEvents are broadcast over a WebSocket (channel capacity 512; a slow client gets a "you are lagging behind" control message rather than a silent stall). The browser synthesizes each event as a voice, draws it on a canvas piano roll, and sends everything through a shared master bus — which is also what the recorder taps for the WebM download.
+The pipeline: a Rust backend captures raw packets with the `pcap` crate, classifies them into event types (TCP SYN/SYN-ACK/RST, DNS, HTTP, UDP, ICMP), feeds SYN packets into a port-scan detector, and maps every event to a musical `NoteEvent` (pitch, velocity, duration, pan). NoteEvents are broadcast over a WebSocket (channel capacity 512; a slow client gets a "you are lagging behind" control message rather than a silent stall). The browser synthesizes each event as a voice, draws it on a canvas piano roll, logs it in a packet feed, and sends everything through a shared master bus — which is also what the recorder taps for the WebM download and the analyser taps for the live spectrum and the ambient background.
+
+Every NoteEvent also carries optional packet metadata — `src_ip`, `dst_ip`, `src_port`, `dst_port` — so the UI can show real addresses instead of just the musical mapping. The fields are defaulted to absent on the wire, so older fixtures (including the bundled `replay-demo.json`) still parse unchanged; the packet feed simply renders an em-dash (—) where an address is missing, by deliberate design rather than by accident.
 
 **`capture/instruments/ambient.toml` is the single source of truth for the sonification mapping** (pitch, duration, velocity). The frontend "instrument packs" change only the timbre — which voice plays which event type — never the mapping. (Honest footnote: the `waveform` field in `ambient.toml` documents each event's intended character; the actual sound is chosen by the browser's pack table, since the backend emits note data, not audio.)
 
@@ -96,13 +105,25 @@ Open the preview URL and click **▶ Try Live Demo (no backend needed)**. A bund
 
 ## Instrument packs
 
-Three timbres, switchable at any time — even mid-note (a sustained pad keeps ringing when you switch packs mid-stream; verified by tests):
+Four timbres, switchable at any time — even mid-note (a sustained pad keeps ringing when you switch packs mid-stream; verified by tests):
 
 - **Ambient** — plucks, bells, soft pads and a sine drone; the default.
 - **Chiptune** — square and triangle waves, stabby and retro.
 - **Orchestral** — strings, brass stabs, celesta, pizzicato and flute.
+- **Ensemble** — a guitar-led rhythm section: SYNs and SYN-ACKs are picked guitar, RSTs are muted, lowpassed thumps, UDP is staccato guitar, and HTTP data drops an octave as a triangle bass. DNS keeps the bell and ICMP the soft pad from Ambient, so the mix stays familiar.
+
+One deliberate exception lives in Ensemble: its `port_scan_alert` layers **two voices per arpeggio note** — a plucked guitar plus a triangle bass an octave below — where every other pack plays a single voice. The rationale is contrast over complexity: an alarm should feel fuller and heavier than anything normal traffic can produce, and because both voices stay inside the pentatonic scale, the extra body reads as "louder and deeper", not as muddiness.
 
 Pack selection changes only timbre; the pentatonic mapping above stays the same, so packs can be swapped instantly without the mix ever sounding wrong.
+
+## Visual layers
+
+The sound was the original point, but the same NoteEvent stream now also feeds a full visual layer. Everything below consumes real data — there are no decorative animations:
+
+- **Packet feed** — a scrolling log of the most recent 40 events: an event token colored by type (e.g. `TCP_SYN`), a clock timestamp, and `src:port → dst:port` with byte size, rendered every 250 ms from the live event buffer. Alert rows render as `src → ??? ALERT`. IPs are redacted by default — the "Redact IPs" toggle starts checked: IPv4 addresses keep only their first two octets (`10.0.x.x`), IPv6 keeps all but the last four groups (`2001:db8::x:x:x:x`). Missing address fields (old fixtures) render as an em-dash (—). Note the redaction is a readability mask, not an anonymity guarantee (see limitations).
+- **Live spectrum** — a real 128-bin FFT of the master bus drawn as bars, not a fake equalizer: the single analyser (a module-level singleton in `analyser.ts`) is tapped into the master bus, and every spectrum consumer reads the same instance — so what you see is exactly what the mixer hears. Before audio is started it shows a quiet idle placeholder instead.
+- **Piano roll** — the scrolling note view gained three refinements: each note is vertically jittered by up to ±6 px (a deterministic hash of the event type plus arrival time — purely display-side, the underlying pitch data is untouched); gridlines for the ten scale notes are labeled with note names (e.g. `C5`); and bar height now follows velocity (4–10 px), so a 0.9-velocity SYN visibly outweighs a quiet RST.
+- **Ambient background** — a full-viewport canvas behind all UI (z-index 0, `pointer-events: none`) showing a fixed node mesh: 42 nodes at deterministic seeded positions (a hard-coded `0x5eed13` seed, so the identical mesh appears on every load), linked whenever two nodes sit closer than 16% of the shorter viewport dimension. Nodes and links have a faint base opacity (0.2 / 0.055); once audio is playing, each node's glow is boosted by the same analyser's spectrum through `clamp01((db + 60) / 52)` — so the mesh quietly breathes as the mix changes and settles back to a static, barely-there wireframe when audio is off. It is reactive, not animated: no idle motion, no loops, just data.
 
 ## Port-scan detection
 
@@ -117,6 +138,8 @@ Honest note: this is a demo-grade heuristic, not production IDS-grade — a burs
 - **Inbound IPv6 behind NAT64 was occasionally missed by Npcap** during testing (observed in Step 2's verification). If you test on a network with IPv6-only inbound connections, expect some events to vanish; this is a real, disclosed limitation of the capture layer.
 - **No macOS testing has been done anywhere in this project.** It likely builds (the `pcap` crate supports macOS), but nothing has been verified on it — file an issue if you hit something.
 - **Recording exports `.webm`** (Opus audio in a WebM container) — that's what `Tone.Recorder` actually produces in Chromium. The download is named `wiresong-<timestamp>.webm`; it opens in any modern browser or player. It is *not* a WAV file.
+- **The ambient background is tuned for cost, not maximum fidelity**: its effective pixel density is capped at 1.5× device-pixel-ratio, so on high-DPI screens the full-viewport canvas is slightly less crisp than the rest of the UI. When audio is off it redraws at most every 250 ms — a static faint wireframe, never a looping animation. This is a deliberate performance/polish tradeoff, not an unfinished state.
+- **Packet-feed IP redaction is a display mask, not anonymization**: it blanks the last two IPv4 octets and the last four IPv6 groups (the default view), but the full addresses still travel over the WebSocket and remain visible in captured logs or browser devtools. Don't treat the feed as a privacy control.
 
 ## Project structure
 
@@ -127,8 +150,8 @@ WireSong/
 │   ├── src/          main.rs · capture.rs · classify.rs · portscan.rs · mapper.rs · ws.rs · config.rs
 │   └── instruments/  ambient.toml — the sonification mapping (single source of truth)
 ├── player/           React 19 + TypeScript + Vite + Tone.js frontend
-│   ├── src/audio/    synth.ts (voices, packs, master bus) · recorder.ts (WebM export)
-│   ├── src/components/  InstrumentPicker · PianoRoll · RecordControls
+│   ├── src/audio/    synth.ts (voices, packs, master bus) · analyser.ts (shared FFT tap) · recorder.ts (WebM export)
+│   ├── src/components/  AmbientBackground · InstrumentPicker · PacketFeed · PianoRoll · RecordControls · SpectrumAnalyzer · packetFeedFormat.ts
 │   └── src/          App.tsx · ws.ts (WebSocket client) · replay.ts (demo replay)
 ├── examples/         replay-demo.json (bundled 60s demo fixture) + its generator
 ├── .github/          CI workflow (cargo test + npm test + build)
