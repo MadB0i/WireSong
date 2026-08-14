@@ -2,3 +2,9 @@ target/
 node_modules/
 dist/
 *.log
+
+# Machine-local pcap SDK path (Windows only)
+capture/.cargo/
+
+# Machine-local pcap SDK path (Windows only)
+capture/.cargo/
