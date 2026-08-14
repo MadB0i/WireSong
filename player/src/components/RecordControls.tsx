@@ -5,6 +5,12 @@ import {
   startRecording,
   stopRecording,
 } from "../audio/recorder";
+import {
+  beginShareCapture,
+  endShareCapture,
+  exportSharePage,
+  type ShareRecording,
+} from "../share";
 
 function formatElapsed(ms: number): string {
   const totalSeconds = Math.floor(ms / 1000);
@@ -30,6 +36,11 @@ export function RecordControls(): ReactElement {
   const [recording, setRecording] = useState(false);
   const [elapsedMs, setElapsedMs] = useState(0);
   const [savedName, setSavedName] = useState<string | null>(null);
+  const [share, setShare] = useState<{
+    recording: ShareRecording;
+    blob: Blob | null;
+  } | null>(null);
+  const [exporting, setExporting] = useState(false);
 
   useEffect(() => {
     if (!recording) {
@@ -50,6 +61,8 @@ export function RecordControls(): ReactElement {
   const toggle = async () => {
     if (!recording) {
       setElapsedMs(0);
+      setShare(null);
+      beginShareCapture();
       startRecording();
       setRecording(true);
       return;
@@ -60,6 +73,10 @@ export function RecordControls(): ReactElement {
     if (blob === null) {
       return;
     }
+    const shareRecording = endShareCapture();
+    if (shareRecording !== null) {
+      setShare({ recording: shareRecording, blob });
+    }
     const filename = `wiresong-${Date.now()}.${extensionForType(blob.type)}`;
     const url = URL.createObjectURL(blob);
     const anchor = document.createElement("a");
@@ -68,6 +85,18 @@ export function RecordControls(): ReactElement {
     anchor.click();
     setTimeout(() => URL.revokeObjectURL(url), 10_000);
     setSavedName(filename);
+  };
+
+  const exportShare = async () => {
+    if (share === null) {
+      return;
+    }
+    setExporting(true);
+    try {
+      await exportSharePage(share.recording, share.blob);
+    } finally {
+      setExporting(false);
+    }
   };
 
   return (
@@ -93,6 +122,16 @@ export function RecordControls(): ReactElement {
       >
         {recording ? formatElapsed(elapsedMs) : savedName !== null ? `Saved: ${savedName}` : "idle"}
       </span>
+      {share !== null && (
+        <button
+          data-testid="export-share-button"
+          onClick={exportShare}
+          disabled={exporting}
+          className="rounded-full border border-cyan-glow/40 bg-cyan-500/10 px-3 py-1.5 text-xs font-semibold text-cyan-300 transition hover:bg-cyan-500/20 disabled:cursor-not-allowed disabled:opacity-40"
+        >
+          {exporting ? "Exporting…" : "⬆ Share Page"}
+        </button>
+      )}
     </div>
   );
 }

@@ -9,7 +9,6 @@ const RENDER_INTERVAL_MS = 250;
 interface PacketFeedProps {
   eventBufferRef: RefObject<TimestampedNoteEvent[]>;
   redact: boolean;
-  onRedactChange: (redact: boolean) => void;
 }
 
 function formatClock(ms: number): string {
@@ -20,7 +19,7 @@ function formatClock(ms: number): string {
   return `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}.${String(millis).padStart(3, "0")}`;
 }
 
-export function PacketFeed({ eventBufferRef, redact, onRedactChange }: PacketFeedProps): JSX.Element {
+export function PacketFeed({ eventBufferRef, redact }: PacketFeedProps): JSX.Element {
   const containerRef = useRef<HTMLUListElement | null>(null);
 
   useEffect(() => {
@@ -62,16 +61,6 @@ export function PacketFeed({ eventBufferRef, redact, onRedactChange }: PacketFee
         <h2 className="text-[11px] font-semibold uppercase tracking-widest text-zinc-500">
           Packet feed
         </h2>
-        <label className="ml-auto inline-flex cursor-pointer items-center gap-1.5 text-[11px] font-medium text-zinc-500 select-none">
-          <input
-            data-testid="redact-toggle"
-            type="checkbox"
-            checked={redact}
-            onChange={(e) => onRedactChange(e.target.checked)}
-            className="h-3 w-3 accent-aurora-500"
-          />
-          Redact IPs
-        </label>
       </header>
       <ul
         ref={containerRef}

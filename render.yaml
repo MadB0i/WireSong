@@ -1,0 +1,16 @@
+# Render blueprint: https://render.com/docs/blueprint-spec
+# Deploy: "New +" -> "Blueprint" -> point at this repo.
+# The free instance sleeps after ~15 min of inactivity; it wakes on the next
+# visit (a few seconds of cold start).
+services:
+  - type: web
+    name: wiresong-capture
+    runtime: rust
+    plan: free
+    region: oregon
+    buildCommand: cargo build --release
+    startCommand: ./target/release/wiresong --synthetic --rate 20
+    healthCheckPath: /
+    envVars:
+      - key: RUST_LOG
+        value: info

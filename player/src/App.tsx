@@ -7,6 +7,7 @@ import {
 } from "./audio/synth";
 import { startReplay } from "./replay";
 import { recordAnalytics, resetAnalytics } from "./analytics";
+import { captureShareEvent } from "./share";
 import { InstrumentPicker } from "./components/InstrumentPicker";
 import {
   PianoRoll,
@@ -90,6 +91,7 @@ function App() {
     eventBufferRef.current.push({ ...event, received_at_ms: now });
     timestampsRef.current.push(Date.now());
     recordAnalytics(event, Date.now());
+    captureShareEvent(event);
     setTotal((t) => t + 1);
   }, []);
 
@@ -161,10 +163,10 @@ function App() {
   }, []);
 
   const audioLabel = !audioOn
-    ? "🔊 Enable Audio"
+    ? "🔊 Sound"
     : muted
-      ? "🔈 Unmute Audio"
-      : "🔇 Mute Audio";
+      ? "🔈 Unmute"
+      : "🔇 Mute";
 
   return (
     <div className="relative min-h-screen text-zinc-100">
@@ -173,7 +175,7 @@ function App() {
       <div className="app-grain" />
       <AmbientBackground />
 
-      <div className="relative z-10 mx-auto max-w-4xl px-6 py-6">
+      <div className="relative z-10 mx-auto max-w-7xl px-6 py-6">
         <header className="mb-4 flex items-center gap-3">
           <svg
             viewBox="0 0 44 26"
@@ -181,22 +183,21 @@ function App() {
             fill="none"
             aria-hidden
           >
-            <rect
-              x="1"
-              y="1"
-              width="42"
-              height="24"
-              rx="2"
-              stroke="rgba(232, 234, 238, 0.35)"
-              strokeWidth="1"
-            />
-            <path
-              d="M3 13h8v-5h4v8h4v-6h6v7h4v-4h4v4h4v-6h4"
-              stroke="#34d399"
-              strokeWidth="1.4"
+            <g
+              stroke="rgba(232, 234, 238, 0.28)"
+              strokeWidth="1.2"
               strokeLinecap="round"
-              strokeLinejoin="round"
-            />
+            >
+              <path d="M5 13h9" />
+              <path d="M20 13v-8h9" />
+              <path d="M20 13v8h9" />
+              <path d="M5 13l15-8" />
+              <path d="M5 13l15 8" />
+            </g>
+            <circle cx="5" cy="13" r="2.6" fill="#34d399" />
+            <circle cx="20" cy="13" r="2.2" fill="#22d3ee" />
+            <circle cx="29" cy="5" r="2.2" fill="#a78bfa" />
+            <circle cx="29" cy="21" r="2.2" fill="#a78bfa" />
           </svg>
           <div>
             <h1 className="font-display text-2xl font-bold tracking-tight">
@@ -222,43 +223,33 @@ function App() {
           </div>
         </header>
 
-        <div className="mb-3 flex items-center gap-3">
-          <span className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs font-medium backdrop-blur-md">
-            <span
-              className={`status-dot h-2 w-2 rounded-full ${STATUS_COLORS[status]}`}
-            />
-            <span data-testid="status" className="font-mono text-zinc-200">
-              {status}
-            </span>
-          </span>
-          {replayRunning && (
-            <span
-              data-testid="replay-indicator"
-              className="inline-flex items-center gap-1.5 rounded-full border border-violet-glow/40 bg-violet-500/10 px-3 py-1 text-xs font-semibold text-violet-300 backdrop-blur-md"
-            >
-              <span className="status-dot h-1.5 w-1.5 rounded-full bg-violet-400" />
-              Replay Mode
-            </span>
-          )}
-        </div>
-
-        <section className="glass rounded-2xl p-4">
+        <div className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1fr)_360px]">
+          <div className="flex min-w-0 flex-col gap-4">
+        <section className="glass rounded-2xl p-3">
           <div className="flex flex-wrap items-center gap-2">
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-[11px] font-medium backdrop-blur-md">
+              <span
+                className={`status-dot h-1.5 w-1.5 rounded-full ${STATUS_COLORS[status]}`}
+              />
+              <span data-testid="status" className="font-mono text-zinc-200">
+                {status}
+              </span>
+            </span>
             <input
               data-testid="url-input"
               value={url}
               onChange={(e) => setUrl(e.target.value)}
-              className="min-w-[240px] flex-1 rounded-xl border border-white/10 bg-black/30 px-3 py-2 font-mono text-xs text-zinc-200 placeholder-zinc-600 backdrop-blur-md transition focus:border-aurora-400/60 focus:outline-none focus:ring-2 focus:ring-aurora-500/25"
+              className="min-w-[180px] flex-1 rounded-xl border border-white/10 bg-black/30 px-3 py-1.5 font-mono text-xs text-zinc-200 placeholder-zinc-600 backdrop-blur-md transition focus:border-aurora-400/60 focus:outline-none focus:ring-2 focus:ring-aurora-500/25"
             />
             <button
               data-testid="connect-button"
               onClick={connect}
               disabled={replayRunning}
-              className={`${PRIMARY_BTN} border-transparent bg-gradient-to-r from-aurora-600 to-violet-glow text-white shadow-lg shadow-aurora-600/30 hover:shadow-aurora-500/40 hover:brightness-110`}
+              className={`${PRIMARY_BTN} border-transparent bg-gradient-to-r from-aurora-600 to-violet-glow px-3 py-1.5 text-white shadow-lg shadow-aurora-600/30 hover:shadow-aurora-500/40 hover:brightness-110`}
             >
               <svg
                 viewBox="0 0 24 24"
-                className="h-4 w-4"
+                className="h-3.5 w-3.5"
                 fill="none"
                 stroke="currentColor"
                 strokeWidth="2.4"
@@ -272,11 +263,11 @@ function App() {
               <button
                 data-testid="disconnect-button"
                 onClick={disconnect}
-                className={`${PRIMARY_BTN} border-red-500/30 bg-red-500/10 text-red-300 hover:bg-red-500/20`}
+                className={`${PRIMARY_BTN} border-red-500/30 bg-red-500/10 px-3 py-1.5 text-red-300 hover:bg-red-500/20`}
               >
                 <svg
                   viewBox="0 0 24 24"
-                  className="h-4 w-4"
+                  className="h-3.5 w-3.5"
                   fill="none"
                   stroke="currentColor"
                   strokeWidth="2.4"
@@ -288,12 +279,27 @@ function App() {
               </button>
             )}
             <button
+              data-testid="redact-toggle"
+              onClick={() => setRedactIps((v) => !v)}
+              aria-pressed={!redactIps}
+              className={
+                redactIps
+                  ? "inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-[11px] font-medium text-zinc-400 backdrop-blur-md transition hover:border-aurora-400/40 hover:text-zinc-200"
+                  : "inline-flex items-center gap-1.5 rounded-full border border-amber-400/40 bg-amber-500/10 px-2.5 py-1 text-[11px] font-semibold text-amber-300 backdrop-blur-md transition hover:bg-amber-500/20"
+              }
+            >
+              {redactIps ? "🔒 IPs hidden" : "👁 Full IP view"}
+            </button>
+          </div>
+
+          <div className="mt-2 flex flex-wrap items-center gap-2 border-t border-white/5 pt-2">
+            <button
               data-testid="replay-button"
               onClick={startReplayDemo}
               disabled={
                 replayRunning || status === "open" || status === "connecting"
               }
-              className={`${PRIMARY_BTN} border-violet-glow/40 bg-violet-500/10 text-violet-300 hover:bg-violet-500/20`}
+              className={`${PRIMARY_BTN} border-violet-glow/40 bg-violet-500/10 px-3 py-1.5 text-violet-300 hover:bg-violet-500/20`}
             >
               ▶ Try Live Demo
             </button>
@@ -301,96 +307,77 @@ function App() {
               <button
                 data-testid="stop-replay-button"
                 onClick={stopReplayDemo}
-                className={`${PRIMARY_BTN} border-red-500/30 bg-red-500/10 text-red-300 hover:bg-red-500/20`}
+                className={`${PRIMARY_BTN} border-red-500/30 bg-red-500/10 px-3 py-1.5 text-red-300 hover:bg-red-500/20`}
               >
                 ■ Stop Demo
               </button>
             )}
-          </div>
-
-          <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-white/5 pt-3">
-            <div className="ml-auto flex items-center gap-2">
-              <RecordControls />
-              <button
-                data-testid="audio-button"
-                onClick={toggleAudio}
-                className={
-                  audioOn && !muted
-                    ? `${PRIMARY_BTN} border-white/10 bg-white/5 text-zinc-300 hover:bg-white/10`
-                    : `${PRIMARY_BTN} border-transparent bg-gradient-to-r from-aurora-600 to-violet-glow text-white shadow-lg shadow-aurora-600/30 hover:brightness-110`
-                }
-              >
-                {audioLabel}
-              </button>
+            {replayRunning && (
               <span
-                data-testid="audio-status"
-                className="rounded-full border border-white/10 bg-black/30 px-3 py-1 font-mono text-[11px] text-zinc-400 backdrop-blur-md"
+                data-testid="replay-indicator"
+                className="inline-flex items-center gap-1.5 rounded-full border border-violet-glow/40 bg-violet-500/10 px-2.5 py-1 text-[11px] font-semibold text-violet-300 backdrop-blur-md"
               >
-                Audio:{" "}
-                <span className="text-zinc-200">
-                  {audioOn ? (muted ? "on · muted" : "on") : "off"}
-                </span>
+                <span className="status-dot h-1.5 w-1.5 rounded-full bg-violet-400" />
+                Replay Mode
               </span>
-            </div>
+            )}
+            <RecordControls />
+            <button
+              data-testid="audio-button"
+              onClick={toggleAudio}
+              className={
+                audioOn && !muted
+                  ? `${PRIMARY_BTN} border-white/10 bg-white/5 px-3 py-1.5 text-zinc-300 hover:bg-white/10`
+                  : `${PRIMARY_BTN} border-transparent bg-gradient-to-r from-aurora-600 to-violet-glow px-3 py-1.5 text-white shadow-lg shadow-aurora-600/30 hover:brightness-110`
+              }
+            >
+              {audioLabel}
+            </button>
           </div>
 
           {banner !== null && (
             <div
               key={banner.id}
               data-testid="control-banner"
-              className="banner-in mt-3 rounded-xl border border-amber-400/30 bg-amber-500/10 px-3 py-2 font-mono text-xs text-amber-200 backdrop-blur-md"
+              className="banner-in mt-2 rounded-xl border border-amber-400/30 bg-amber-500/10 px-3 py-2 font-mono text-xs text-amber-200 backdrop-blur-md"
             >
               {banner.message}
             </div>
           )}
 
-          <div className="mt-3 border-t border-white/5 pt-3">
-            <div className="mb-2 flex items-center gap-2">
-              <span className="h-1.5 w-1.5 rounded-full bg-gradient-to-r from-aurora-400 to-cyan-glow" />
-              <h2 className="text-[11px] font-semibold uppercase tracking-widest text-zinc-500">
-                Sound pack
-              </h2>
-            </div>
+          <div className="mt-2 border-t border-white/5 pt-2">
             <InstrumentPicker />
           </div>
         </section>
 
-        <section className="glass mt-4 rounded-2xl px-5 pb-1 pt-4">
-          <SpectrumAnalyzer />
-        </section>
-
-        <section className="mt-4 border-t border-white/5 pt-3">
-          <div className="flex items-center gap-2">
-            <div className="flex flex-col items-start gap-0.5 text-[10px] font-semibold uppercase tracking-widest text-zinc-500">
-              <span>total events</span>
-              <p
-                data-testid="total"
-                className="font-mono text-2xl font-semibold text-zinc-50 tabular-nums"
-              >
-                {total}
-              </p>
-            </div>
-            <div className="flex flex-col items-start gap-0.5 ml-4 text-[10px] font-semibold uppercase tracking-widest text-zinc-500">
-              <span>events/sec</span>
-              <p
-                data-testid="per-second"
-                className="font-mono text-2xl font-semibold text-zinc-50 tabular-nums"
-              >
-                {perSecond}
-              </p>
-            </div>
-          </div>
-          <div className="h-px bg-gradient-to-r from-transparent via-white/20 to-transparent flex-1 mx-4"></div>
-        </section>
-
-        <section className="glass mt-4 rounded-2xl p-3">
+        <section className="glass rounded-2xl p-3">
           <header className="flex items-center gap-2 px-2 pb-2 pt-0.5">
             <span className="status-dot h-1.5 w-1.5 rounded-full bg-gradient-to-r from-aurora-400 to-cyan-glow" />
             <h2 className="text-[11px] font-semibold uppercase tracking-widest text-zinc-500">
               Piano roll
             </h2>
-            <span className="ml-auto font-mono text-[11px] text-zinc-600">
-              8s window · pentatonic
+            <span className="ml-auto flex items-center gap-3 font-mono text-[11px] text-zinc-500">
+              <span className="tabular-nums">
+                total{" "}
+                <b
+                  data-testid="total"
+                  className="ml-1 text-sm font-semibold text-zinc-50"
+                >
+                  {total}
+                </b>
+              </span>
+              <span className="tabular-nums">
+                /s{" "}
+                <b
+                  data-testid="per-second"
+                  className="ml-1 text-sm font-semibold text-zinc-50"
+                >
+                  {perSecond}
+                </b>
+              </span>
+              <span className="hidden text-zinc-600 md:inline">
+                8s window · pentatonic
+              </span>
             </span>
           </header>
           <PianoRoll eventBufferRef={eventBufferRef} />
@@ -413,32 +400,34 @@ function App() {
           </footer>
         </section>
 
-        <section className="glass mt-4 rounded-2xl p-3">
-          <header className="flex items-center gap-2 px-2 pb-2 pt-0.5">
-            <span className="status-dot h-1.5 w-1.5 rounded-full bg-gradient-to-r from-aurora-400 to-cyan-glow" />
-            <h2 className="text-[11px] font-semibold uppercase tracking-widest text-zinc-500">
-              Network graph
-            </h2>
-            <span className="ml-auto font-mono text-[11px] text-zinc-600">
-              live connections · local node pinned
-            </span>
-          </header>
-          <NetworkGraph eventBufferRef={eventBufferRef} redactIps={redactIps} />
-          <footer className="border-t border-white/5 px-2 pt-1.5 font-mono text-[10px] text-zinc-600">
-            hover a node for details · dots travel src → dst per event
-          </footer>
+        <section className="glass rounded-2xl px-5 pb-1 pt-4">
+          <SpectrumAnalyzer />
         </section>
 
-        <section className="glass mt-4 rounded-2xl">
-          <PacketFeed
-            eventBufferRef={eventBufferRef}
-            redact={redactIps}
-            onRedactChange={setRedactIps}
-          />
-        </section>
+        <AnalyticsPanel redact={redactIps} />
+        </div>
 
-        <div className="mt-4">
-          <AnalyticsPanel redact={redactIps} />
+        <aside className="flex min-w-0 flex-col gap-4 xl:sticky xl:top-4 xl:self-start">
+          <section className="glass rounded-2xl p-3">
+            <header className="flex items-center gap-2 px-2 pb-2 pt-0.5">
+              <span className="status-dot h-1.5 w-1.5 rounded-full bg-gradient-to-r from-aurora-400 to-cyan-glow" />
+              <h2 className="text-[11px] font-semibold uppercase tracking-widest text-zinc-500">
+                Network graph
+              </h2>
+              <span className="ml-auto font-mono text-[11px] text-zinc-600">
+                live connections · local node pinned
+              </span>
+            </header>
+            <NetworkGraph eventBufferRef={eventBufferRef} redactIps={redactIps} />
+            <footer className="border-t border-white/5 px-2 pt-1.5 font-mono text-[10px] text-zinc-600">
+              hover a node for details · dots travel src → dst per event
+            </footer>
+          </section>
+
+          <section className="glass rounded-2xl">
+            <PacketFeed eventBufferRef={eventBufferRef} redact={redactIps} />
+          </section>
+        </aside>
         </div>
 
         <footer className="mt-6 text-center font-mono text-[11px] text-zinc-600">

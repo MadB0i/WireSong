@@ -1,22 +1,33 @@
 # WireSong
 
 [![CI](https://github.com/MadB0i/WireSong/actions/workflows/ci.yml/badge.svg)](https://github.com/MadB0i/WireSong/actions/workflows/ci.yml)
+[![GitHub Pages](https://img.shields.io/badge/deploy-GitHub%20Pages-2ea44f)](https://MadB0i.github.io/WireSong/)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
 WireSong turns live network traffic into a real-time generative soundscape. Packets are captured and classified in Rust, quantized onto a pentatonic scale so that even heavy traffic sounds harmonious, and streamed to a browser that synthesizes each packet as an instrument voice — so a busy network literally hums along as it works. Anomalies are surfaced the same way your ears would want them: when a port scan is detected, a distinct four-note alarm cuts through the mix, plus a red band on a scrolling piano-roll visualization. It is sonification as an alerting mechanism, not just another dashboard.
+
+## Features
+
+- **Real-time sonification** — every classified packet becomes a musical note (pitch, velocity, duration, pan) on a pentatonic scale, so a busy network sounds like a generative soundtrack instead of noise
+- **Anomalies you can hear** — a port-scan detector fires a distinct four-note alarm that cuts through the mix, with a red band on the piano roll
+- **Four capture modes** — live NIC (libpcap/Npcap), offline `.pcap` replay, deterministic synthetic traffic, and a bundled in-browser demo replay (no privileges needed)
+- **Live analytics** — event mix, top talkers, traffic sparkline, and scan alerts in the UI
+- **Privacy-first by default** — IPs are masked in the UI and never exported (opt-in "Full IP view")
+- **Shareable recordings** — export a standalone HTML page with embedded audio and synchronized piano-roll playback, zero external dependencies
+- **Shipped for demo** — frontend on GitHub Pages, backend deployable to Render (free tier), CI running Rust + TypeScript unit tests and Playwright E2E
 
 ## Demo
 
 ![WireSong demo](docs/demo.gif)
 
-*Illustrative mockup of the piano-roll view — mixed traffic scrolls by as colored bars, then a burst of SYNs triggers the port-scan alert: a red "SCAN" band sweeps across the display while a four-note rising arpeggio cuts into the mix.* This GIF is a stylized stand-in (built to match the real component's palette and layout), not a screen capture — swap it for a real recording whenever you get the chance:
+*Illustrative mockup of the piano-roll view — mixed traffic scrolls by as colored bars, then a burst of SYNs triggers the port-scan alert: a red "SCAN" band sweeps across the display while a four-note rising arpeggio cuts into the mix.* This GIF is a stylized stand-in (built to match the real component's palette and layout), not a screen capture — a real recording recipe:
 
-<!-- TODO: replace docs/demo.gif with a real screen + audio recording. Quick recipe:
-     1. Run the live pipeline (or the no-backend replay demo below) with sound on.
-     2. Screen-record ~45–60s with OBS/ShareX, including a port-scan trigger.
-     3. ffmpeg -i demo.mp4 -vf "fps=12,scale=760:-1:flags=lanczos" -loop 0 docs/demo.gif
-     4. For a version with audio, keep an .mp4 too and link it here alongside the GIF. -->
+1. Run the backend in synthetic mode (`cargo run -- --synthetic --rate 20`) or live; start the player and Connect.
+2. Record ~45–60 s of screen + audio (Win+G, OBS, or ShareX). Synthetic mode fires a port-scan alert roughly every ~25 notes, so the alarm shows up on its own.
+3. `ffmpeg -i demo.mp4 -vf "fps=12,scale=760:-1:flags=lanczos" -loop 0 docs/demo.gif`
+4. Zero-effort alternative: hit **● Record → ⬆ Share Page** in the app — you get the audio and visuals in one standalone HTML file, no editing at all.
 
-Try it right now without any setup: `cd player && npm run build && npm run preview`, open the browser, and click **▶ Try Live Demo (no backend needed)** — a bundled 60-second replay of realistic traffic, no capture permissions or root required. A hosted copy is deployed to GitHub Pages at <https://MadB0i.github.io/WireSong/> (deployed via `.github/workflows/deploy-demo.yml`).
+Try it right now without any setup: `cd player && npm run build && npm run preview`, open the browser, and click **▶ Try Live Demo** — a bundled 60-second replay of realistic traffic, no capture permissions or root required. A hosted copy is deployed to GitHub Pages at <https://MadB0i.github.io/WireSong/> (deployed via `.github/workflows/deploy-demo.yml`).
 
 ## How it works
 
@@ -99,6 +110,54 @@ npm run build && npm run preview
 
 Open the preview URL and click **▶ Try Live Demo (no backend needed)**. A bundled 60-second replay of realistic traffic plays through the exact same pipeline — sounds, piano roll, pack switching, and the port-scan alarm at ~31 s all included. This is the easiest way to evaluate the project before bothering with capture privileges.
 
+## Quickstart — Offline replay of real packets (no privileges)
+
+The backend can replay a `.pcap` file through the exact same pipeline as live capture — useful for demos, deterministic testing, and benchmarks:
+
+```bash
+cd capture
+cargo run -- --pcap samples/dns-mdns.pcap --max-packets 587
+```
+
+Sample captures are checked in under `capture/samples/` (from the Wireshark test suite): `dns-mdns.pcap`, `http2-data-reassembly.pcap`, `dis_voice_sample.pcap`, `http.pcap`. In replay mode the frontend connects exactly like live mode (`ws://127.0.0.1:3000/ws`).
+
+## Quickstart — Synthetic traffic (zero privileges, hosted-demo mode)
+
+`--synthetic` generates a realistic event mix (SYN/SYN-ACK/RST, DNS, HTTP, UDP, ICMP, with an occasional port-scan burst) at a configurable rate — no NIC, no admin, no pcap file:
+
+```bash
+cd capture
+cargo run -- --synthetic --rate 20     # 20 notes/sec, runs until Ctrl+C
+cargo run -- --synthetic --rate 20 --max-packets 100   # bounded run
+```
+
+This is the mode the deployed backend runs in (see below), so anyone can hear the app without touching a packet capture.
+
+## Benchmark mode
+
+`--bench` disables the note rate-limiter so capture+classify+map throughput can be measured. Replaying `dns-mdns.pcap` (587 packets, 414 notes) on a mid-range Windows dev machine:
+
+| build | packets/s | notes/s |
+|---|---|---|
+| debug | ~12,300 | ~8,700 |
+| release | ~16,000 | ~11,400 |
+
+Throughput is decode-bound and scales with packet complexity; these are best-of-3 runs over a small capture, so treat them as order-of-magnitude. Benchmark a bigger capture the same way: `cargo run --release -- --pcap <file> --bench`.
+
+## Hosted backend (Render)
+
+`render.yaml` deploys the backend as a free Render web service running `--synthetic --rate 20`:
+
+1. Push this repo to GitHub, then in Render: **New + → Blueprint** → select the repo.
+2. Render builds with `cargo build --release` and starts with `./target/release/wiresong --synthetic --rate 20`. The `PORT` env var is honored (binds `0.0.0.0:$PORT`); locally it binds `127.0.0.1:3000`.
+3. In the player, paste `wss://<your-service>.onrender.com/ws` into the URL field and Connect. (The Pages-hosted frontend is HTTPS, so the backend URL must be `wss://`, not `ws://`.)
+
+Free instances sleep after ~15 min of inactivity and cold-start in a few seconds on the next visit — fine for a demo, worth knowing before a screen recording.
+
+## Share a recording as a standalone page
+
+After stopping a recording, the player offers **⬆ Share Page**: it exports a single self-contained HTML file with the audio embedded (base64) plus a canvas piano-roll that replays every note in sync — no external dependencies, works from `file://`, easy to attach to an email or a repo. Only musical metadata (pitch, timing, velocity, pan) is exported, never raw IPs: *IPs never leave the browser*.
+
 ## Instrument packs
 
 Three timbres, switchable at any time — even mid-note (a sustained pad keeps ringing when you switch packs mid-stream; verified by tests):
@@ -121,7 +180,8 @@ Honest note: this is a demo-grade heuristic, not production IDS-grade — a burs
 - **Windows loopback capture uses a different frame format**: loopback traffic arrives as `DLT_NULL` (a 4-byte link-layer header) rather than Ethernet, and the classifier handles both (`classify` vs `classify_ip` in `capture.rs`/`classify.rs`). Works, but it's a special case worth knowing about if you poke at the classifier.
 - **Inbound IPv6 behind NAT64 was occasionally missed by Npcap** during testing (observed in Step 2's verification). If you test on a network with IPv6-only inbound connections, expect some events to vanish; this is a real, disclosed limitation of the capture layer.
 - **No macOS testing has been done anywhere in this project.** It likely builds (the `pcap` crate supports macOS), but nothing has been verified on it — file an issue if you hit something.
-- **Recording exports `.webm`** (Opus audio in a WebM container) — that's what `Tone.Recorder` actually produces in Chromium. The download is named `wiresong-<timestamp>.webm`; it opens in any modern browser or player. It is *not* a WAV file.
+- **Recording exports `.webm`** (Opus audio in a WebM container) — that's what `Tone.Recorder` actually produces in Chromium. The download is named `wiresong-<timestamp>.webm`; it opens in any modern browser or player. It is *not* a WAV file. For something more presentable, the **⬆ Share Page** export bundles the same audio into a standalone HTML page.
+- **The backend redacts nothing** — IPs travel to the browser in plaintext over the WebSocket. The frontend redacts them for display, and share exports strip them entirely, but if you point the player at a hostile network, treat the stream as sensitive.
 
 ## Project structure
 
@@ -129,15 +189,22 @@ Honest note: this is a demo-grade heuristic, not production IDS-grade — a burs
 WireSong/
 ├── capture/          Rust backend: pcap capture, classification, port-scan detection,
 │   │                 note mapping, WebSocket server (ws://127.0.0.1:3000/ws)
-│   ├── src/          main.rs · capture.rs · classify.rs · portscan.rs · mapper.rs · ws.rs · config.rs
-│   └── instruments/  ambient.toml — the sonification mapping (single source of truth)
+│   ├── src/          main.rs · capture.rs (live/offline/synthetic/bench) · classify.rs
+│   │                 · portscan.rs · mapper.rs · ws.rs · config.rs
+│   ├── instruments/  ambient.toml — the sonification mapping (single source of truth)
+│   └── samples/      small .pcap fixtures from the Wireshark test suite (replay/bench)
 ├── player/           React 19 + TypeScript + Vite + Tone.js frontend
 │   ├── src/audio/    synth.ts (voices, packs, master bus) · recorder.ts (WebM export)
-│   ├── src/components/  InstrumentPicker · PianoRoll · RecordControls
+│   ├── src/components/  InstrumentPicker · PianoRoll · NetworkGraph · PacketFeed
+│   │                    · SpectrumAnalyzer · RecordControls · AnalyticsPanel
+│   ├── e2e/          Playwright end-to-end tests
 │   └── src/          App.tsx · ws.ts (WebSocket client) · replay.ts (demo replay)
+│                     · analytics.ts (live stats store) · share.ts (standalone HTML export)
 ├── examples/         replay-demo.json (bundled 60s demo fixture) + its generator
-├── docs/             demo.gif
-├── .github/          CI workflow (cargo test + npm test + build) + Pages deploy workflow
+├── docs/             demo.gif (placeholder — see recipe in the Demo section)
+├── render.yaml       Render blueprint: deploys the backend in synthetic mode
+├── .github/          CI workflow (cargo test + npm test + build + Playwright E2E)
+│                     + Pages deploy workflow
 ├── README.md
 └── LICENSE
 ```

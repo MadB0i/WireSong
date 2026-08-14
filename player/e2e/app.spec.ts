@@ -1,3 +1,4 @@
+import { copyFileSync, readFileSync } from "node:fs";
 import { expect, test } from "@playwright/test";
 
 test("app shell renders every section", async ({ page }) => {
@@ -39,13 +40,46 @@ test("live demo streams events into every visualizer", async ({ page }) => {
   await expect(page.getByTestId("replay-indicator")).toHaveCount(0);
 });
 
-test("redact toggle flips the IP redaction checkbox", async ({ page }) => {
+test("full ip view is off by default; toggle flips it", async ({ page }) => {
   await page.goto("/");
   const toggle = page.getByTestId("redact-toggle");
-  await expect(toggle).toBeVisible();
-  await expect(toggle).toBeChecked();
+  await expect(toggle).toContainText("IPs hidden");
   await toggle.click();
-  await expect(toggle).not.toBeChecked();
+  await expect(toggle).toContainText("Full IP view");
   await toggle.click();
-  await expect(toggle).toBeChecked();
+  await expect(toggle).toContainText("IPs hidden");
+});
+
+test("recording exports a self-contained share page", async ({
+  page,
+  context,
+}) => {
+  await page.goto("/");
+  await page.getByTestId("replay-button").click();
+  await expect(page.getByTestId("total")).not.toHaveText("0", {
+    timeout: 15_000,
+  });
+  await page.getByTestId("record-button").click();
+  await page.waitForTimeout(3000);
+
+  const audioDownloadPromise = page.waitForEvent("download");
+  await page.getByTestId("record-button").click();
+  await audioDownloadPromise;
+
+  await expect(page.getByTestId("export-share-button")).toBeVisible();
+  const downloadPromise = page.waitForEvent("download");
+  await page.getByTestId("export-share-button").click();
+  const download = await downloadPromise;
+  const filePath = await download.path();
+  const html = readFileSync(filePath!, "utf-8");
+  expect(html).toContain("WireSong");
+  expect(html).toContain("<canvas");
+  expect(html).toContain("port_scan_alert");
+
+  const exported = await context.newPage();
+  const htmlPath = `${filePath}.html`;
+  copyFileSync(filePath!, htmlPath);
+  await exported.goto(`file:///${htmlPath.replace(/\\/g, "/")}`);
+  await expect(exported.locator("canvas")).toBeVisible();
+  await expect(exported.locator("body")).toContainText("Network Soundscape");
 });
