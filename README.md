@@ -20,12 +20,9 @@ WireSong turns live network traffic into a real-time generative soundscape. Pack
 
 ![WireSong demo](docs/demo.gif)
 
-*Illustrative mockup of the piano-roll view — mixed traffic scrolls by as colored bars, then a burst of SYNs triggers the port-scan alert: a red "SCAN" band sweeps across the display while a four-note rising arpeggio cuts into the mix.* This GIF is a stylized stand-in (built to match the real component's palette and layout), not a screen capture — a real recording recipe:
+*A ~35-second screen capture of the live app: synthetic traffic streams in from the backend, the piano roll scrolls in pentatonic bars, the network graph draws live connections, the packet feed streams every event — and the occasional port-scan alarm cuts through with a red flash.*
 
-1. Run the backend in synthetic mode (`cargo run -- --synthetic --rate 20`) or live; start the player and Connect.
-2. Record ~45–60 s of screen + audio (Win+G, OBS, or ShareX). Synthetic mode fires a port-scan alert roughly every ~25 notes, so the alarm shows up on its own.
-3. `ffmpeg -i demo.mp4 -vf "fps=12,scale=760:-1:flags=lanczos" -loop 0 docs/demo.gif`
-4. Zero-effort alternative: hit **● Record → ⬆ Share Page** in the app — you get the audio and visuals in one standalone HTML file, no editing at all.
+To make your own: run `cargo run -- --synthetic --rate 20` in `capture/`, open the player and Connect, enable sound, and screen-record ~30 s (Win+G / OBS). Or skip video editing entirely and hit **● Record → ⬆ Share Page** in the app — you get a standalone HTML with the audio and visuals in one file, ready to send anywhere.
 
 Try it right now without any setup: `cd player && npm run build && npm run preview`, open the browser, and click **▶ Try Live Demo** — a bundled 60-second replay of realistic traffic, no capture permissions or root required. A hosted copy is deployed to GitHub Pages at <https://MadB0i.github.io/WireSong/> (deployed via `.github/workflows/deploy-demo.yml`).
 
@@ -201,7 +198,7 @@ WireSong/
 │   └── src/          App.tsx · ws.ts (WebSocket client) · replay.ts (demo replay)
 │                     · analytics.ts (live stats store) · share.ts (standalone HTML export)
 ├── examples/         replay-demo.json (bundled 60s demo fixture) + its generator
-├── docs/             demo.gif (placeholder — see recipe in the Demo section)
+├── docs/             demo.gif (real screen capture) · DESIGN.md
 ├── render.yaml       Render blueprint: deploys the backend in synthetic mode
 ├── .github/          CI workflow (cargo test + npm test + build + Playwright E2E)
 │                     + Pages deploy workflow
