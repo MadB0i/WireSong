@@ -12,9 +12,9 @@ WireSong turns live network traffic into a real-time generative soundscape. Pack
 - **Anomalies you can hear** — a port-scan detector fires a distinct four-note alarm that cuts through the mix, with a red band on the piano roll
 - **Four capture modes** — live NIC (libpcap/Npcap), offline `.pcap` replay, deterministic synthetic traffic, and a bundled in-browser demo replay (no privileges needed)
 - **Live analytics** — event mix, top talkers, traffic sparkline, and scan alerts in the UI
-- **Privacy-first by default** — IPs are masked in the UI and never exported (opt-in "Full IP view")
+- **Privacy-first by default** — IPs are masked in the UI and stripped from every export; an opt-in "Full IP view" reveals them on screen only (the WebSocket itself carries unredacted IPs — see limitations)
 - **Shareable recordings** — export a standalone HTML page with embedded audio and synchronized piano-roll playback, zero external dependencies
-- **Shipped for demo** — frontend on GitHub Pages, backend deployable to Render (free tier), CI running Rust + TypeScript unit tests and Playwright E2E
+- **Shipped for demo** — frontend live on GitHub Pages; backend ships with a ready-to-deploy Render blueprint (free tier, **not yet deployed**); CI runs Rust + TypeScript unit tests and Playwright E2E
 
 ## Demo
 
@@ -142,6 +142,8 @@ This is the mode the deployed backend runs in (see below), so anyone can hear th
 Throughput is decode-bound and scales with packet complexity; these are best-of-3 runs over a small capture, so treat them as order-of-magnitude. Benchmark a bigger capture the same way: `cargo run --release -- --pcap <file> --bench`.
 
 ## Hosted backend (Render)
+
+> **Status: not deployed.** This is a ready-to-run blueprint; no Render instance exists yet. Deploying is ~2 minutes of clicking:
 
 `render.yaml` deploys the backend as a free Render web service running `--synthetic --rate 20`:
 
