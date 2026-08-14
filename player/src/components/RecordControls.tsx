@@ -81,8 +81,8 @@ export function RecordControls(): ReactElement {
         disabled={!isAudioStarted()}
         className={
           recording
-            ? "record-pulse rounded-sm bg-red-600 px-2.5 py-1 text-xs font-semibold text-white transition hover:bg-red-500"
-            : "rounded-sm border border-white/10 px-2.5 py-1 text-xs font-medium text-zinc-300 transition hover:bg-zinc-800 hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
+            ? "record-pulse rounded-full bg-red-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-red-500"
+            : "rounded-full border border-white/15 bg-white/5 px-3 py-1.5 text-xs font-medium text-zinc-300 transition hover:border-aurora-400/40 hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
         }
       >
         {recording ? "■ Stop" : "● Record"}

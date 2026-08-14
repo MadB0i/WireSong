@@ -99,7 +99,7 @@ export function InstrumentPicker({ onPackChange }: InstrumentPickerProps): React
   return (
     <div
       data-testid="instrument-picker"
-      className="flex items-center gap-2 rounded-sm border border-white/20 bg-black/30 px-3 py-1.5"
+      className="flex items-center gap-2 rounded-2xl border border-white/10 bg-black/25 p-1.5 backdrop-blur-md"
     >
       {PACK_META.map(({ name, label, tagline, icon }) => {
         const isActive = activePack === name;
@@ -111,14 +111,14 @@ export function InstrumentPicker({ onPackChange }: InstrumentPickerProps): React
             aria-pressed={isActive}
             className={
               isActive
-                ? `group flex items-center gap-3 rounded-sm border border-emerald-400/70 bg-emerald-500/10 px-3 py-2 text-left transition-all duration-200 active:scale-[0.99]`
-                : `group flex items-center gap-3 rounded-sm border border-white/10 bg-black/30 px-3 py-2 text-left transition-all duration-200 hover:border-white/25 hover:bg-white/5 active:scale-[0.99]`
+                ? `group flex items-center gap-3 rounded-xl border border-aurora-400/50 bg-gradient-to-r from-aurora-600/25 to-violet-glow/20 px-3 py-2 text-left shadow-lg shadow-aurora-600/20 transition-all duration-200 active:scale-[0.99]`
+                : `group flex items-center gap-3 rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-left transition-all duration-200 hover:border-white/25 hover:bg-white/5 active:scale-[0.99]`
             }
           >
             <span
-              className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-sm border ${
+              className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border ${
                 isActive
-                  ? "border-emerald-400/60 text-emerald-300"
+                  ? "border-aurora-400/50 bg-aurora-500/15 text-aurora-300"
                   : "border-white/10 text-zinc-400 group-hover:text-zinc-200"
               }`}
             >
@@ -127,14 +127,14 @@ export function InstrumentPicker({ onPackChange }: InstrumentPickerProps): React
             <span className="flex min-w-0 flex-col gap-0.5">
               <span className="flex items-center gap-2">
                 <span
-                  className={isActive ? "text-sm font-semibold text-emerald-200" : "text-sm font-medium text-zinc-300 group-hover:text-zinc-100"}
+                  className={isActive ? "text-sm font-semibold text-aurora-200" : "text-sm font-medium text-zinc-300 group-hover:text-zinc-100"}
                 >
                   {label}
                 </span>
                 {isActive && (
                   <span className="pack-wave flex h-3 items-end gap-[2px]">
                     {WAVES.map((i) => (
-                      <span key={i} className="w-[3px] rounded-full bg-emerald-400" style={{ animationDelay: `${i * 0.18}s` }} />
+                      <span key={i} className="w-[3px] rounded-full bg-gradient-to-t from-aurora-500 to-cyan-glow" style={{ animationDelay: `${i * 0.18}s` }} />
                     ))}
                   </span>
                 )}

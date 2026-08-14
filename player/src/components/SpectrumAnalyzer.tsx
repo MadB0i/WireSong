@@ -43,11 +43,11 @@ export function SpectrumAnalyzer(): JSX.Element {
       const height = CANVAS_HEIGHT;
 
       ctx.clearRect(0, 0, width, height);
-      ctx.fillStyle = "rgba(52, 211, 153, 0.12)";
+      ctx.fillStyle = "rgba(129, 140, 248, 0.14)";
       ctx.fillRect(0, height - 1, width, 1);
 
       if (!isAudioStarted()) {
-        ctx.fillStyle = "rgba(52, 211, 153, 0.22)";
+        ctx.fillStyle = "rgba(129, 140, 248, 0.22)";
         const idleWidth = width / 48;
         for (let i = 0; i < 48; i++) {
           const x = i * (width / 48);
@@ -69,7 +69,9 @@ export function SpectrumAnalyzer(): JSX.Element {
         const normalized = Math.min(1, Math.max(0, (db - MIN_DB) / (MAX_DB - MIN_DB)));
         const barHeight = Math.max(1, normalized * height);
         const alpha = 0.35 + 0.65 * normalized;
-        ctx.fillStyle = `rgba(52, 211, 153, ${alpha.toFixed(3)})`;
+        const t = bins <= 1 ? 0 : i / (bins - 1);
+        const hue = 235 - t * 45;
+        ctx.fillStyle = `hsla(${hue.toFixed(1)}, 80%, ${(66 + t * 4).toFixed(1)}%, ${alpha.toFixed(3)})`;
         ctx.fillRect(i * barWidth, height - barHeight, barWidth - 1, barHeight);
       }
       rafId = requestAnimationFrame(draw);

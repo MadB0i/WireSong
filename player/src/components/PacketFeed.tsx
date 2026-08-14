@@ -55,10 +55,10 @@ export function PacketFeed({ eventBufferRef, redact, onRedactChange }: PacketFee
   return (
     <div
       data-testid="packet-feed"
-      className="flex min-h-[140px] flex-col overflow-hidden rounded-sm border border-white/10 bg-black/60"
+      className="flex min-h-[140px] flex-col overflow-hidden rounded-2xl border border-white/10 bg-black/25"
     >
-      <header className="flex items-center gap-2 border-b border-white/10 px-3 py-1.5">
-        <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
+      <header className="flex items-center gap-2 border-b border-white/10 bg-white/[0.03] px-3 py-1.5">
+        <span className="h-1.5 w-1.5 rounded-full bg-gradient-to-r from-aurora-400 to-cyan-glow" />
         <h2 className="text-[11px] font-semibold uppercase tracking-widest text-zinc-500">
           Packet feed
         </h2>
@@ -68,7 +68,7 @@ export function PacketFeed({ eventBufferRef, redact, onRedactChange }: PacketFee
             type="checkbox"
             checked={redact}
             onChange={(e) => onRedactChange(e.target.checked)}
-            className="h-3 w-3 accent-emerald-400"
+            className="h-3 w-3 accent-aurora-500"
           />
           Redact IPs
         </label>

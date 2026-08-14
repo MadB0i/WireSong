@@ -37,31 +37,17 @@ export function isAudioStarted(): boolean {
   return audioStarted;
 }
 
-let muted = false;
-
-export function isAudioMuted(): boolean {
-  return muted;
-}
-
 export function setAudioMuted(next: boolean): void {
-  muted = next;
   const bus = getMasterBus();
   const now = Tone.now();
   bus.gain.cancelScheduledValues(now);
   bus.gain.setTargetAtTime(next ? 0 : 1, now, 0.05);
 }
 
-let activeChains = 0;
-
-export function getActiveChainCount(): number {
-  return activeChains;
-}
-
 function disposeChain(nodes: Tone.ToneAudioNode[]): void {
   for (const node of nodes) {
     node.dispose();
   }
-  activeChains -= 1;
 }
 
 function scheduleDispose(disposeAfterMs: number, nodes: Tone.ToneAudioNode[]): void {
@@ -435,7 +421,6 @@ export function playNoteEvent(event: NoteEvent): void {
   node.connect(panner);
   panner.connect(volume);
   volume.connect(getMasterBus());
-  activeChains += 1;
 
   scheduleDispose(Math.max(event.duration_ms, 0) + RELEASE_TAIL_MS, [node, panner, volume]);
 }

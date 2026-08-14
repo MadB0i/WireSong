@@ -17,13 +17,13 @@ const NOTE_NAMES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", 
 export type TimestampedNoteEvent = NoteEvent & { received_at_ms: number };
 
 const COLORS_BY_EVENT: Record<string, string> = {
-  tcp_syn: "#38bdf8",
+  tcp_syn: "#60a5fa",
   tcp_synack: "#818cf8",
   tcp_rst: "#64748b",
   dns_query: "#a78bfa",
-  http_data: "#34d399",
-  udp: "#22d3ee",
-  icmp: "#2dd4bf",
+  http_data: "#22d3ee",
+  udp: "#2dd4bf",
+  icmp: "#e879f9",
   port_scan_alert: "#ef4444",
 };
 const FALLBACK_COLOR = "#94a3b8";
@@ -122,7 +122,7 @@ export function PianoRoll({ eventBufferRef }: PianoRollProps): JSX.Element {
 
       ctx.clearRect(0, 0, width, height);
 
-      ctx.strokeStyle = "rgba(255, 255, 255, 0.06)";
+      ctx.strokeStyle = "rgba(129, 140, 248, 0.09)";
       ctx.lineWidth = 1;
       for (const note of SCALE_NOTES) {
         const y = pitchToY(note, height);
@@ -130,7 +130,7 @@ export function PianoRoll({ eventBufferRef }: PianoRollProps): JSX.Element {
         ctx.moveTo(0, y);
         ctx.lineTo(width, y);
         ctx.stroke();
-        ctx.fillStyle = "rgba(255, 255, 255, 0.28)";
+        ctx.fillStyle = "rgba(165, 180, 252, 0.35)";
         ctx.font = "10px JetBrains Mono, monospace";
         ctx.textBaseline = "middle";
         ctx.fillText(midiToNoteName(note), 4, y);
@@ -187,7 +187,7 @@ export function PianoRoll({ eventBufferRef }: PianoRollProps): JSX.Element {
     <div
       ref={containerRef}
       data-testid="piano-roll"
-      className="w-full overflow-hidden rounded-xl bg-black/40"
+      className="w-full overflow-hidden rounded-2xl bg-black/30"
     >
       <canvas ref={canvasRef} />
     </div>

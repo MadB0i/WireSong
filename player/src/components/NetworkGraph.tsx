@@ -18,6 +18,13 @@ export const CARTOON_CANVAS_HEIGHT = 260;
 const TRAVEL_MIN_MS = 400;
 const TRAVEL_MAX_MS = 600;
 const SPACER = ">";
+const HOVER_RADIUS_PX = 18;
+const SWEEP_RPM = 0.35;
+const SWEEP_WEDGE_RAD = 0.45;
+const RING_MIN_GAP_MS = 350;
+const RING_DURATION_MS = 800;
+const BURST_DURATION_MS = 450;
+const BURST_PARTICLE_COUNT = 8;
 
 export interface GraphNode {
   ip: string;
@@ -108,6 +115,23 @@ export function edgeKeyFor(srcIp: string, dstIp: string): string {
 export function splitEdgeKey(key: string): [string, string] {
   const sep = key.indexOf(SPACER);
   return [key.slice(0, sep), key.slice(sep + SPACER.length)];
+}
+
+// Edge stroke width scales with traffic count (log curve so 1 event ≈ 1px,
+// busy links get visibly thicker without exploding visually).
+export function edgeWidthFor(eventCount: number): number {
+  return Math.min(3.2, 1 + Math.log2(Math.max(1, eventCount)) * 0.55);
+}
+
+// Extra alpha for busy edges, layered on top of the base fade alpha.
+export function edgeAlphaBoostFor(eventCount: number): number {
+  return Math.min(0.45, Math.log2(Math.max(1, eventCount)) * 0.12);
+}
+
+// Whether an (order-independent) edge key touches the given ip.
+export function isConnected(edgeKey: string, ip: string): boolean {
+  const [a, b] = splitEdgeKey(edgeKey);
+  return a === ip || b === ip;
 }
 
 // Pure: returns a NEW map, never mutates the input.
@@ -237,6 +261,15 @@ interface Pulse {
   durationMs: number;
 }
 
+interface Burst {
+  x: number;
+  y: number;
+  startMs: number;
+  durationMs: number;
+  eventType: string;
+  seed: number;
+}
+
 interface NetworkGraphProps {
   eventBufferRef: RefObject<TimestampedNoteEvent[]>;
   redactIps: boolean;
@@ -278,9 +311,40 @@ export function NetworkGraph({
     const degree = new Map<string, Set<string>>();
     const dots: TravelingDot[] = [];
     const pulses: Pulse[] = [];
+    const rings: Pulse[] = [];
+    const bursts: Burst[] = [];
+    const lastRingMs = new Map<string, number>();
     let lastProcessed = 0;
     let lastFrameMs = 0;
     let lastPulseAddMs = 0;
+    let sweepAngle = 0;
+    let hoveredIp: string | null = null;
+
+    // ---- hover tracking (highlight + tooltip) ----
+    const onPointerMove = (e: PointerEvent) => {
+      const rect = canvas.getBoundingClientRect();
+      const mx = e.clientX - rect.left;
+      const my = e.clientY - rect.top;
+      let best: string | null = null;
+      let bestDist = HOVER_RADIUS_PX * HOVER_RADIUS_PX;
+      for (const node of nodes.values()) {
+        const dx = node.x - mx;
+        const dy = node.y - my;
+        const d = dx * dx + dy * dy;
+        if (d <= bestDist) {
+          bestDist = d;
+          best = node.ip;
+        }
+      }
+      hoveredIp = best;
+      canvas.style.cursor = best === null ? "default" : "pointer";
+    };
+    const onPointerLeave = () => {
+      hoveredIp = null;
+      canvas.style.cursor = "default";
+    };
+    canvas.addEventListener("pointermove", onPointerMove);
+    canvas.addEventListener("pointerleave", onPointerLeave);
 
     const draw = (nowMs: number) => {
       const ctx = canvas.getContext("2d");
@@ -290,6 +354,8 @@ export function NetworkGraph({
       const dpr = window.devicePixelRatio || 1;
       const width = canvas.clientWidth;
       const height = CARTOON_CANVAS_HEIGHT;
+      const hovered = hoveredIp;
+      const frameDt = lastFrameMs === 0 ? 16.7 : nowMs - lastFrameMs;
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       ctx.clearRect(0, 0, width, height);
 
@@ -300,6 +366,15 @@ export function NetworkGraph({
       }
       const fresh = buffer.slice(lastProcessed);
       lastProcessed = buffer.length;
+
+      // ---- recent event count for pulse triggering ----
+      const recentEventCount = eventBufferRef.current.filter(
+        (e) => nowMs - e.received_at_ms <= 1000
+      ).length;
+
+      // ---- local node (pinned at center) ----
+      const local = [...nodes.values()].find((n) => n.isLocal);
+
       for (const event of fresh) {
         const ageMs = nowMs - event.received_at_ms;
         const recent = ageMs <= 1000;
@@ -321,7 +396,7 @@ export function NetworkGraph({
         }
         upsertNode(nodes, src, nowMs, event.pan > 0.5, recent, container);
         upsertNode(nodes, dst, nowMs, event.pan < -0.5, recent, container);
-if (recent) {
+        if (recent) {
           const key = edgeKeyFor(src, dst);
           const edge = edges.get(key);
           if (edge === undefined) {
@@ -343,33 +418,29 @@ if (recent) {
             degree.set(dst, neighbors);
           }
           neighbors.add(src);
-if (event.received_at_ms >= nowMs - TRAVEL_MAX_MS) {
-          dots.push({
-            src,
-            dst,
-            startMs: nowMs,
-            durationMs: TRAVEL_MIN_MS + (hashString(`${src}${dst}${nowMs % 1000}`) % (TRAVEL_MAX_MS - TRAVEL_MIN_MS)),
-            eventType: event.event_type,
-            positions: [],
-          });
+          if (event.received_at_ms >= nowMs - TRAVEL_MAX_MS) {
+            dots.push({
+              src,
+              dst,
+              startMs: nowMs,
+              durationMs: TRAVEL_MIN_MS + (hashString(`${src}${dst}${nowMs % 1000}`) % (TRAVEL_MAX_MS - TRAVEL_MIN_MS)),
+              eventType: event.event_type,
+              positions: [],
+            });
+          }
+          // sonar echo ring on the destination (throttled per node)
+          const lastRing = lastRingMs.get(dst);
+          if (lastRing === undefined || nowMs - lastRing >= RING_MIN_GAP_MS) {
+            lastRingMs.set(dst, nowMs);
+            rings.push({ ip: dst, startMs: nowMs, durationMs: RING_DURATION_MS });
+          }
         }
       }
-
-      // ---- recent event count for pulse triggering ----
-      const recentEventCount = eventBufferRef.current.filter(
-        (e) => nowMs - e.received_at_ms <= 1000
-      ).length;
 
       // ---- local node transmit-pulse (activity-driven, not fixed-interval) ----
       if (recentEventCount > 0 && nowMs - lastPulseAddMs > 800) {
         pulses.push({ ip: local?.ip ?? "", startMs: nowMs, durationMs: 1500 });
         lastPulseAddMs = nowMs;
-      }
-      if (recentEventCount === 0) {
-        // no need to add pulses when idle; existing ones will fade out naturally
-      }
-
-      // ---- prune ----
       }
 
       // ---- prune ----
@@ -392,7 +463,6 @@ if (event.received_at_ms >= nowMs - TRAVEL_MAX_MS) {
       }
 
       // ---- physics ----
-      const local = [...nodes.values()].find((n) => n.isLocal);
       if (local !== undefined) {
         local.x = width / 2;
         local.y = height / 2;
@@ -413,7 +483,7 @@ if (event.received_at_ms >= nowMs - TRAVEL_MAX_MS) {
       if (local !== undefined) {
         const maxRadius = Math.min(width, height) * 0.45;
         const ringStep = maxRadius / 3;
-        ctx.strokeStyle = "rgba(148, 163, 184, 0.08)";
+        ctx.strokeStyle = "rgba(129, 140, 248, 0.09)";
         ctx.lineWidth = 1;
         for (let i = 1; i <= 3; i++) {
           const r = i * ringStep;
@@ -421,6 +491,27 @@ if (event.received_at_ms >= nowMs - TRAVEL_MAX_MS) {
           ctx.arc(local.x, local.y, r, 0, Math.PI * 2);
           ctx.stroke();
         }
+
+        // ---- radar sweep (rotating beam) ----
+        sweepAngle += ((SWEEP_RPM * Math.PI * 2) * frameDt) / 1000;
+        const sweepGrad = ctx.createRadialGradient(local.x, local.y, 0, local.x, local.y, maxRadius);
+        sweepGrad.addColorStop(0, "rgba(129, 140, 248, 0.12)");
+        sweepGrad.addColorStop(1, "rgba(129, 140, 248, 0)");
+        ctx.fillStyle = sweepGrad;
+        ctx.beginPath();
+        ctx.moveTo(local.x, local.y);
+        ctx.arc(local.x, local.y, maxRadius, sweepAngle - SWEEP_WEDGE_RAD, sweepAngle);
+        ctx.closePath();
+        ctx.fill();
+        ctx.strokeStyle = "rgba(129, 140, 248, 0.4)";
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.moveTo(local.x, local.y);
+        ctx.lineTo(
+          local.x + Math.cos(sweepAngle) * maxRadius,
+          local.y + Math.sin(sweepAngle) * maxRadius,
+        );
+        ctx.stroke();
       }
 
       // ---- draw edges ----
@@ -436,13 +527,28 @@ if (event.received_at_ms >= nowMs - TRAVEL_MAX_MS) {
         if (fade <= 0) {
           continue;
         }
+        const connectedToHover = hovered !== null && isConnected(key, hovered);
+        const dim = hovered !== null && !connectedToHover;
+        const weight = edgeWidthFor(edge.eventCount);
+        const alphaBoost = edgeAlphaBoostFor(edge.eventCount);
+        const alpha = Math.min(0.9, 0.1 + 0.35 * fade + alphaBoost) * (dim ? 0.15 : 1);
         const parts = colorForEventType(edge.eventType).match(/[0-9a-f]{2}/gi);
         const rgb = parts !== null ? parts.slice(0, 3) : ["148", "163", "184"];
-        ctx.strokeStyle = `rgba(${parseInt(rgb[0], 16)}, ${parseInt(rgb[1], 16)}, ${parseInt(rgb[2], 16)}, ${(0.1 + 0.35 * fade).toFixed(3)})`;
-        ctx.lineWidth = 1;
-        ctx.beginPath();
-        ctx.moveTo(na.x, na.y);
-        ctx.lineTo(nb.x, nb.y);
+        const r = parseInt(rgb[0], 16);
+        const g = parseInt(rgb[1], 16);
+        const blue = parseInt(rgb[2], 16);
+        // stable per-edge bend so the graph reads organic, not chaotic
+        const curve = ((hashString(key) % 20) - 10) * 0.002;
+        if (!dim && (weight > 1.3 || connectedToHover)) {
+          // soft under-glow pass (cheap fake glow, no shadowBlur cost)
+          ctx.strokeStyle = `rgba(${r}, ${g}, ${blue}, ${(alpha * 0.18).toFixed(3)})`;
+          ctx.lineWidth = weight + 3.5;
+          curvedEdgePath(ctx, na.x, na.y, nb.x, nb.y, curve);
+          ctx.stroke();
+        }
+        ctx.strokeStyle = `rgba(${r}, ${g}, ${blue}, ${alpha.toFixed(3)})`;
+        ctx.lineWidth = connectedToHover ? weight + 1 : weight;
+        curvedEdgePath(ctx, na.x, na.y, nb.x, nb.y, curve);
         ctx.stroke();
       }
 
@@ -451,6 +557,17 @@ if (event.received_at_ms >= nowMs - TRAVEL_MAX_MS) {
         const dot = dots[i];
         const t = (nowMs - dot.startMs) / dot.durationMs;
         if (t >= 1) {
+          const dstNode = nodes.get(dot.dst);
+          if (dstNode !== undefined) {
+            bursts.push({
+              x: dstNode.x,
+              y: dstNode.y,
+              startMs: nowMs,
+              durationMs: BURST_DURATION_MS,
+              eventType: dot.eventType,
+              seed: (hashString(`${dot.src}${dot.dst}${dot.startMs}`) % 628) / 100,
+            });
+          }
           dots.splice(i, 1);
           continue;
         }
@@ -498,27 +615,46 @@ if (event.received_at_ms >= nowMs - TRAVEL_MAX_MS) {
         if (fade <= 0) {
           continue;
         }
-        const radius = node.isLocal
-          ? LOCAL_RADIUS
-          : REMOTE_RADIUS_MIN + Math.min(3, (degree.get(node.ip)?.size ?? 0) * 0.45);
-        const a = node.isLocal ? 0.95 * fade : (0.65 + 0.3 * fade) * fade;
+        const isHovered = hovered === node.ip;
+        const connectedToHover =
+          hovered !== null && !isHovered && (degree.get(hovered)?.has(node.ip) ?? false);
+        const dim = hovered !== null && !isHovered && !connectedToHover;
+        const radius =
+          (node.isLocal
+            ? LOCAL_RADIUS
+            : REMOTE_RADIUS_MIN + Math.min(3, (degree.get(node.ip)?.size ?? 0) * 0.45)) +
+          (isHovered ? 2 : 0);
+        const a = (node.isLocal ? 0.95 * fade : (0.65 + 0.3 * fade) * fade) * (dim ? 0.22 : 1);
         ctx.fillStyle = node.isLocal
-          ? `rgba(52, 211, 153, ${a.toFixed(3)})`
-          : `rgba(148, 163, 184, ${a.toFixed(3)})`;
+          ? `rgba(34, 211, 238, ${a.toFixed(3)})`
+          : `rgba(165, 180, 252, ${a.toFixed(3)})`;
         ctx.beginPath();
         ctx.arc(node.x, node.y, radius, 0, Math.PI * 2);
         ctx.fill();
         if (node.isLocal) {
-          ctx.strokeStyle = `rgba(52, 211, 153, ${(0.5 * fade).toFixed(3)})`;
+          ctx.strokeStyle = `rgba(129, 140, 248, ${((0.55 * fade) * (dim ? 0.22 : 1)).toFixed(3)})`;
           ctx.lineWidth = 1;
           ctx.beginPath();
           ctx.arc(node.x, node.y, LOCAL_RADIUS + 3, 0, Math.PI * 2);
           ctx.stroke();
         }
+        if (isHovered) {
+          ctx.strokeStyle = "rgba(255, 255, 255, 0.85)";
+          ctx.lineWidth = 1.5;
+          ctx.beginPath();
+          ctx.arc(node.x, node.y, radius + 4, 0, Math.PI * 2);
+          ctx.stroke();
+          ctx.strokeStyle = `rgba(129, 140, 248, ${(0.35 * fade).toFixed(3)})`;
+          ctx.lineWidth = 1;
+          ctx.beginPath();
+          ctx.arc(node.x, node.y, radius + 9, 0, Math.PI * 2);
+          ctx.stroke();
+        }
         // Always-visible label: show IP for nodes seen within last 5 seconds,
         // tied to the node's fade (fades with it). Omit for older nodes to reduce clutter.
+        // A hovered node always shows its label regardless of age.
         const labelAge = nowMs - node.lastSeenMs;
-        if (labelAge <= 5_000) {
+        if (labelAge <= 5_000 || isHovered) {
           let label = node.ip;
           if (redacted && label !== "unknown") {
             label = redactIp(label);
@@ -526,7 +662,7 @@ if (event.received_at_ms >= nowMs - TRAVEL_MAX_MS) {
           if (label.length > 18) {
             label = `${label.slice(0, 17)}…`;
           }
-          ctx.fillStyle = `rgba(228, 231, 235, ${(0.5 * fade).toFixed(3)})`;
+          ctx.fillStyle = `rgba(228, 231, 235, ${((isHovered ? 0.9 : 0.5) * fade).toFixed(3)})`;
           ctx.font = "9px JetBrains Mono, monospace";
           ctx.textAlign = "center";
           ctx.fillText(label, node.x, node.y - radius - 4);
@@ -552,6 +688,66 @@ if (event.received_at_ms >= nowMs - TRAVEL_MAX_MS) {
         ctx.arc(node.x, node.y, 10 + 34 * t, 0, Math.PI * 2);
         ctx.stroke();
       }
+
+      // ---- sonar rings (node receive echo) ----
+      for (let i = rings.length - 1; i >= 0; i--) {
+        const ring = rings[i];
+        const t = (nowMs - ring.startMs) / ring.durationMs;
+        if (t >= 1) {
+          rings.splice(i, 1);
+          continue;
+        }
+        const node = nodes.get(ring.ip);
+        if (node === undefined) {
+          rings.splice(i, 1);
+          continue;
+        }
+        const ease = 1 - Math.pow(1 - t, 3);
+        ctx.strokeStyle = `rgba(34, 211, 238, ${(0.5 * (1 - t)).toFixed(3)})`;
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.arc(node.x, node.y, 4 + ease * 26, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+
+      // ---- particle bursts (packet arrival impact) ----
+      for (let i = bursts.length - 1; i >= 0; i--) {
+        const burst = bursts[i];
+        const t = (nowMs - burst.startMs) / burst.durationMs;
+        if (t >= 1) {
+          bursts.splice(i, 1);
+          continue;
+        }
+        const fade = 1 - t;
+        ctx.fillStyle = colorForEventType(burst.eventType);
+        for (let j = 0; j < BURST_PARTICLE_COUNT; j++) {
+          const angle = (j / BURST_PARTICLE_COUNT) * Math.PI * 2 + burst.seed;
+          const dist = Math.sin(t * Math.PI) * 20;
+          const px = burst.x + Math.cos(angle) * dist;
+          const py = burst.y + Math.sin(angle) * dist;
+          ctx.globalAlpha = fade * 0.85;
+          ctx.beginPath();
+          ctx.arc(px, py, 1.6 * (1 - t * 0.6), 0, Math.PI * 2);
+          ctx.fill();
+        }
+        ctx.globalAlpha = 1;
+      }
+
+      // ---- hover tooltip ----
+      if (hoveredIp !== null) {
+        const node = nodes.get(hoveredIp);
+        if (node !== undefined) {
+          drawNodeTooltip(
+            ctx,
+            node,
+            degree.get(node.ip)?.size ?? 0,
+            nowMs,
+            redacted,
+            width,
+            height,
+          );
+        }
+      }
     };
 
     let rafId = 0;
@@ -564,6 +760,8 @@ if (event.received_at_ms >= nowMs - TRAVEL_MAX_MS) {
     return () => {
       cancelAnimationFrame(rafId);
       observer.disconnect();
+      canvas.removeEventListener("pointermove", onPointerMove);
+      canvas.removeEventListener("pointerleave", onPointerLeave);
     };
   }, [eventBufferRef]);
 
@@ -571,9 +769,99 @@ if (event.received_at_ms >= nowMs - TRAVEL_MAX_MS) {
     <div
       ref={containerRef}
       data-testid="network-graph"
-      className="w-full overflow-hidden rounded-sm"
+      className="w-full overflow-hidden rounded-2xl"
     >
       <canvas ref={canvasRef} />
     </div>
   );
+}
+
+function drawNodeTooltip(
+  ctx: CanvasRenderingContext2D,
+  node: GraphNode,
+  connectionCount: number,
+  nowMs: number,
+  redacted: boolean,
+  canvasWidth: number,
+  canvasHeight: number,
+): void {
+  let label = node.ip;
+  if (redacted && label !== "unknown") {
+    label = redactIp(label);
+  }
+  const lastSeenMs = Math.max(0, nowMs - node.lastSeenMs);
+  const lastSeenLabel = lastSeenMs < 1000 ? "now" : `${(lastSeenMs / 1000).toFixed(1)}s ago`;
+  const lines = [
+    label,
+    `${connectionCount} connection${connectionCount === 1 ? "" : "s"}`,
+    `last seen ${lastSeenLabel}`,
+  ];
+  ctx.font = "10px JetBrains Mono, monospace";
+  const lineHeight = 14;
+  const padX = 9;
+  const padY = 7;
+  let maxWidth = 0;
+  for (const line of lines) {
+    maxWidth = Math.max(maxWidth, ctx.measureText(line).width);
+  }
+  const boxWidth = maxWidth + padX * 2;
+  const boxHeight = lines.length * lineHeight + padY * 2;
+  let x = node.x + 12;
+  let y = node.y - boxHeight - 10;
+  x = Math.max(4, Math.min(canvasWidth - boxWidth - 4, x));
+  y = Math.max(4, Math.min(canvasHeight - boxHeight - 4, y));
+  roundRectPath(ctx, x, y, boxWidth, boxHeight, 7);
+  ctx.fillStyle = "rgba(7, 9, 16, 0.92)";
+  ctx.fill();
+  ctx.strokeStyle = "rgba(129, 140, 248, 0.55)";
+  ctx.lineWidth = 1;
+  ctx.stroke();
+  ctx.fillStyle = "rgba(226, 232, 240, 0.95)";
+  ctx.textAlign = "left";
+  ctx.textBaseline = "top";
+  lines.forEach((line, i) => {
+    ctx.fillText(line, x + padX, y + padY + i * lineHeight);
+  });
+  ctx.textBaseline = "alphabetic";
+}
+
+function roundRectPath(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  r: number,
+): void {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + w, y, x + w, y + h, r);
+  ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r);
+  ctx.arcTo(x, y, x + w, y, r);
+  ctx.closePath();
+}
+
+// Quadratic bezier between two nodes, bent perpendicular by a stable
+// per-edge factor so overlapping links read as organic arcs.
+function curvedEdgePath(
+  ctx: CanvasRenderingContext2D,
+  ax: number,
+  ay: number,
+  bx: number,
+  by: number,
+  curve: number,
+): void {
+  const mx = (ax + bx) / 2;
+  const my = (ay + by) / 2;
+  const dx = bx - ax;
+  const dy = by - ay;
+  const len = Math.max(1, Math.hypot(dx, dy));
+  const nx = -dy / len;
+  const ny = dx / len;
+  const cxp = mx + nx * curve * len;
+  const cyp = my + ny * curve * len;
+  ctx.beginPath();
+  ctx.moveTo(ax, ay);
+  ctx.quadraticCurveTo(cxp, cyp, bx, by);
 }

@@ -106,7 +106,8 @@ export function AmbientBackground(): JSX.Element {
         for (const [i, j] of edges) {
           const linkBoost = (boosts[i] + boosts[j]) / 2;
           const alpha = BASE_LINK_ALPHA + linkBoost * 0.14;
-          ctx.strokeStyle = `rgba(52, 211, 153, ${alpha.toFixed(3)})`;
+          const hue = 190 + (i * 47 + j * 23) % 95;
+          ctx.strokeStyle = `hsla(${hue}, 85%, 70%, ${alpha.toFixed(3)})`;
           ctx.beginPath();
           ctx.moveTo(nodes[i].x * width, nodes[i].y * height);
           ctx.lineTo(nodes[j].x * width, nodes[j].y * height);
@@ -120,17 +121,18 @@ export function AmbientBackground(): JSX.Element {
           const cy = node.y * height;
           const alpha = BASE_NODE_ALPHA + boost * 0.55;
           const radius = node.r + boost * 9;
+          const hue = 190 + (i * 47) % 95;
           if (boost > 0.04) {
             const grad = ctx.createRadialGradient(cx, cy, 0, cx, cy, radius * 3);
-            grad.addColorStop(0, `rgba(110, 231, 183, ${(alpha * 0.9).toFixed(3)})`);
-            grad.addColorStop(0.35, `rgba(52, 211, 153, ${(alpha * 0.5).toFixed(3)})`);
-            grad.addColorStop(1, "rgba(52, 211, 153, 0)");
+            grad.addColorStop(0, `hsla(${hue}, 85%, 78%, ${(alpha * 0.9).toFixed(3)})`);
+            grad.addColorStop(0.35, `hsla(${hue}, 80%, 64%, ${(alpha * 0.5).toFixed(3)})`);
+            grad.addColorStop(1, "hsla(235, 80%, 60%, 0)");
             ctx.fillStyle = grad;
             ctx.beginPath();
             ctx.arc(cx, cy, radius * 3, 0, Math.PI * 2);
             ctx.fill();
           } else {
-            ctx.fillStyle = `rgba(52, 211, 153, ${alpha.toFixed(3)})`;
+            ctx.fillStyle = `hsla(${hue}, 85%, 70%, ${alpha.toFixed(3)})`;
             ctx.beginPath();
             ctx.arc(cx, cy, radius, 0, Math.PI * 2);
             ctx.fill();

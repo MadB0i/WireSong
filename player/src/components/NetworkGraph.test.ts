@@ -1,7 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   applyPhysicsStep,
+  edgeAlphaBoostFor,
   edgeKeyFor,
+  edgeWidthFor,
+  isConnected,
   nodeKeyFor,
   pruneStaleNodes,
   splitEdgeKey,
@@ -73,6 +76,34 @@ describe("edgeKeyFor", () => {
     expect(edgeKeyFor(a, b)).toBe(`10.0.0.5>93.184.216.34`);
     const [src, dst] = splitEdgeKey(edgeKeyFor(a, b));
     expect([src, dst]).toEqual(["10.0.0.5", "93.184.216.34"]);
+  });
+});
+
+describe("edgeWidthFor / edgeAlphaBoostFor (traffic weighting)", () => {
+  it("starts at 1px for a single event and grows with traffic, capped", () => {
+    expect(edgeWidthFor(1)).toBeCloseTo(1, 5);
+    expect(edgeWidthFor(4)).toBeGreaterThan(edgeWidthFor(1));
+    expect(edgeWidthFor(32)).toBeGreaterThan(edgeWidthFor(4));
+    expect(edgeWidthFor(1_000_000)).toBeLessThanOrEqual(3.2);
+    expect(edgeWidthFor(0)).toBe(edgeWidthFor(1));
+    expect(edgeWidthFor(-5)).toBe(edgeWidthFor(1));
+  });
+
+  it("adds alpha boost for busy links, capped, and never exceeds the max", () => {
+    expect(edgeAlphaBoostFor(1)).toBeCloseTo(0, 5);
+    expect(edgeAlphaBoostFor(16)).toBeGreaterThan(edgeAlphaBoostFor(2));
+    expect(edgeAlphaBoostFor(1_000_000)).toBeLessThanOrEqual(0.45);
+    expect(edgeAlphaBoostFor(0)).toBe(edgeAlphaBoostFor(1));
+  });
+});
+
+describe("isConnected", () => {
+  it("matches either endpoint of an order-independent edge key", () => {
+    const key = edgeKeyFor("10.0.0.5", "93.184.216.34");
+    expect(isConnected(key, "10.0.0.5")).toBe(true);
+    expect(isConnected(key, "93.184.216.34")).toBe(true);
+    expect(isConnected(key, "8.8.8.8")).toBe(false);
+    expect(isConnected(key, "10.0.0.5>93")).toBe(false);
   });
 });
 
