@@ -54,8 +54,8 @@ const samples = await import("./samples");
 
 function note(fetchFn: (url: string) => Promise<{ ok: boolean }>) {
   return {
-    packId: "axom",
-    file: "samples/dotora-C5.mp3",
+    packId: "demo",
+    file: "samples/demo-C5.mp3",
     sampleMidi: 72,
     freqHz: 440,
     durationSec: 0.2,
@@ -77,8 +77,8 @@ async function flushProbes(): Promise<void> {
 
 describe("sampleUrl", () => {
   it("points at the pack's served samples directory", () => {
-    expect(samples.sampleUrl("axom", "samples/dotora-C5.mp3")).toContain(
-      "packs/axom/samples/dotora-C5.mp3",
+    expect(samples.sampleUrl("demo", "samples/demo-C5.mp3")).toContain(
+      "packs/demo/samples/demo-C5.mp3",
     );
   });
 });
@@ -111,7 +111,7 @@ describe("playSampledNote", () => {
     expect(samples.playSampledNote(note(fetchFn))).toBeNull();
     await flushProbes();
     expect(tone.__sampler.added).toEqual([
-      { note: "N72", url: expect.stringContaining("samples/dotora-C5.mp3") },
+      { note: "N72", url: expect.stringContaining("samples/demo-C5.mp3") },
     ]);
     const tap = samples.playSampledNote(note(fetchFn));
     expect(tap).not.toBeNull();

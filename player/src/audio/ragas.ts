@@ -123,8 +123,23 @@ export function ragaForHour(hour: number): string {
 let currentRagaId = DEFAULT_RAGA_ID;
 let ragaClockEnabled = false;
 
+function notifyRagaChanged(): void {
+  if (typeof window !== "undefined" && typeof window.dispatchEvent === "function") {
+    window.dispatchEvent(new CustomEvent("wiresong:raga"));
+  }
+}
+
+export function onRagaChanged(listener: () => void): () => void {
+  if (typeof window === "undefined" || typeof window.addEventListener !== "function") {
+    return () => undefined;
+  }
+  window.addEventListener("wiresong:raga", listener);
+  return () => window.removeEventListener("wiresong:raga", listener);
+}
+
 export function setRaga(id: string): void {
   currentRagaId = getRaga(id).id;
+  notifyRagaChanged();
 }
 
 export function getRagaId(): string {

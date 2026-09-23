@@ -1,10 +1,10 @@
 import * as Tone from "tone";
 import { getMasterBus, midiToFrequency } from "./synth";
 
-// Sustained Sa-Pa drone bed for the Axom (Bihu) pack: root and fifth
-// through a lowpass, with level following baseline traffic (packets/sec).
-// Folk-festival use only: a neutral harmonic bed under the melodic voices.
-// Silent unless explicitly started; stopping always tears the nodes down.
+// Sustained Sa-Pa drone bed for packs that define a `drone` section: root
+// and fifth through a lowpass, with level following baseline traffic
+// (packets/sec). Silent unless explicitly started; stopping always tears
+// the nodes down.
 
 interface DroneNodes {
   oscA: Tone.Oscillator;
@@ -14,6 +14,17 @@ interface DroneNodes {
 }
 
 let nodes: DroneNodes | null = null;
+
+// Festival presets scale the bed weight (0 = silent bed, 1 = full).
+let scale = 1;
+
+export function setDroneScale(next: number): void {
+  scale = Math.min(2, Math.max(0, next));
+}
+
+export function getDroneScale(): number {
+  return scale;
+}
 
 export function isDroneRunning(): boolean {
   return nodes !== null;
@@ -70,7 +81,7 @@ export function setDroneLevel(packetsPerSec: number): void {
   if (!nodes) {
     return;
   }
-  const level = Math.min(0.12, Math.max(0, 0.03 + packetsPerSec * 0.004));
+  const level = Math.min(0.12, Math.max(0, 0.03 + packetsPerSec * 0.004)) * scale;
   try {
     nodes.gain.gain.setTargetAtTime(level, Tone.now(), 0.5);
   } catch {

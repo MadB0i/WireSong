@@ -6,12 +6,24 @@ import {
   setAudioMuted,
 } from "./audio/synth";
 import { setDroneLevel, startDrone, stopDrone } from "./audio/drone";
-import { BUNDLED_PACKS } from "./audio/packs";
+import { getPackDef, type PackDefinition } from "./audio/packs";
+import {
+  applyFestival,
+  clearFestivalPreset,
+  getActiveFestival,
+} from "./audio/festivals";
+import {
+  setRhythmGrid,
+  startRhythm,
+  stopRhythm,
+  updateRhythmTempo,
+} from "./audio/rhythm";
 import { startReplay } from "./replay";
 import { recordAnalytics, resetAnalytics } from "./analytics";
 import { captureShareEvent } from "./share";
 import { InstrumentPicker } from "./components/InstrumentPicker";
 import { RagaPicker } from "./components/RagaPicker";
+import { FestivalPicker } from "./components/FestivalPicker";
 import {
   PianoRoll,
   EVENT_TYPE_COLORS,
@@ -32,14 +44,39 @@ import {
 
 const DEFAULT_URL = "ws://localhost:3000/ws";
 const BANNER_MS = 3000;
-const DRONE_PACK_ID = "axom";
 
-function droneRoot(): { rootMidi: number; fifthSemitones: number } {
-  const drone = BUNDLED_PACKS[DRONE_PACK_ID]?.drone;
+// Drone beds, rhythm grids, and festival presets all come from the active
+// pack's own definition — no pack is special-cased here.
+function droneFor(def: PackDefinition | undefined): { rootMidi: number; fifthSemitones: number } | null {
+  if (!def?.drone) {
+    return null;
+  }
   return {
-    rootMidi: drone?.rootMidi ?? 36,
-    fifthSemitones: drone?.intervalSemitones ?? 7,
+    rootMidi: def.drone.rootMidi,
+    fifthSemitones: def.drone.intervalSemitones,
   };
+}
+
+function assertPackLayers(packId: string): void {
+  const def = getPackDef(packId);
+  const drone = droneFor(def);
+  if (drone) {
+    startDrone(drone.rootMidi, drone.fifthSemitones);
+  } else {
+    stopDrone();
+  }
+  if (def?.rhythm) {
+    setRhythmGrid({ steps: def.rhythm.steps, low: def.rhythm.low, high: def.rhythm.high });
+    startRhythm();
+  } else {
+    setRhythmGrid(null);
+  }
+  const festival = getActiveFestival(def);
+  if (festival) {
+    applyFestival(festival);
+  } else {
+    clearFestivalPreset();
+  }
 }
 
 const STATUS_COLORS: Record<WireSongStatus, string> = {
@@ -83,13 +120,13 @@ function App() {
   const eventBufferRef = useRef<TimestampedNoteEvent[]>([]);
   const replayRef = useRef<{ stop: () => void } | null>(null);
   const packRef = useRef<string>("ambient");
+  const [packId, setPackId] = useState<string>("ambient");
 
   const enableAudio = useCallback(() => {
     void initAudio().then(() => {
       setAudioOn(isAudioStarted());
-      if (isAudioStarted() && packRef.current === DRONE_PACK_ID) {
-        const { rootMidi, fifthSemitones } = droneRoot();
-        startDrone(rootMidi, fifthSemitones);
+      if (isAudioStarted()) {
+        assertPackLayers(packRef.current);
       }
     });
   }, []);
@@ -97,15 +134,11 @@ function App() {
   const handlePackChange = useCallback(
     (pack: string) => {
       packRef.current = pack;
+      setPackId(pack);
       if (!isAudioStarted()) {
         return;
       }
-      if (pack === DRONE_PACK_ID) {
-        const { rootMidi, fifthSemitones } = droneRoot();
-        startDrone(rootMidi, fifthSemitones);
-      } else {
-        stopDrone();
-      }
+      assertPackLayers(pack);
     },
     [],
   );
@@ -181,9 +214,11 @@ function App() {
       const cutoff = Date.now() - 1000;
       timestampsRef.current = timestampsRef.current.filter((t) => t >= cutoff);
       setPerSecond(timestampsRef.current.length);
-      if (packRef.current === DRONE_PACK_ID) {
-        setDroneLevel(timestampsRef.current.length);
+      const pps = timestampsRef.current.length;
+      if (getPackDef(packRef.current)?.drone) {
+        setDroneLevel(pps);
       }
+      updateRhythmTempo(pps);
     }, 500);
     return () => clearInterval(interval);
   }, []);
@@ -195,6 +230,7 @@ function App() {
       replayRef.current?.stop();
       replayRef.current = null;
       stopDrone();
+      stopRhythm();
       if (bannerTimerRef.current !== null) {
         clearTimeout(bannerTimerRef.current);
       }
@@ -389,6 +425,9 @@ function App() {
           </div>
           <div className="mt-2 border-t border-white/5 pt-2">
             <RagaPicker />
+          </div>
+          <div className="mt-2 border-t border-white/5 pt-2">
+            <FestivalPicker packId={packId} />
           </div>
         </section>
 

@@ -7,6 +7,7 @@ interface PackMeta {
   label: string;
   localLabel?: string;
   tagline: string;
+  status?: string;
   icon: ReactElement;
 }
 
@@ -89,6 +90,21 @@ const PACK_ICONS: Record<string, ReactElement> = {
       <path d="M5 9l-2.5-4M19 9l2.5-4" />
     </svg>
   ),
+  bodo: (
+    <svg
+      viewBox="0 0 24 24"
+      className="h-5 w-5"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+    >
+      <path d="M4 20L16 8" />
+      <circle cx="9.5" cy="15.5" r="1" />
+      <circle cx="12" cy="13" r="1" />
+      <circle cx="14.5" cy="10.5" r="1" />
+    </svg>
+  ),
 };
 
 // Display metadata comes from the pack.json files (single source of truth);
@@ -98,6 +114,7 @@ const PACK_META: PackMeta[] = PACK_IDS.map((id) => ({
   label: BUNDLED_PACKS[id].displayName,
   localLabel: BUNDLED_PACKS[id].displayNameLocal,
   tagline: BUNDLED_PACKS[id].tagline,
+  status: BUNDLED_PACKS[id].culture?.status,
   icon: PACK_ICONS[id] ?? FALLBACK_ICON,
 }));
 
@@ -142,9 +159,18 @@ export function InstrumentPicker({ onPackChange }: InstrumentPickerProps): React
   return (
     <div
       data-testid="instrument-picker"
-      className="flex flex-wrap items-center gap-2 rounded-2xl border border-white/10 bg-black/25 p-1.5 backdrop-blur-md"
+      className="rounded-2xl border border-white/10 bg-black/25 p-1.5 backdrop-blur-md"
     >
-      {PACK_META.map(({ name, label, localLabel, tagline, icon }) => {
+      <div className="flex items-center gap-2 px-1.5 pb-1.5 pt-0.5">
+        <span className="font-mono text-[10px] uppercase tracking-widest text-zinc-500">
+          Cultural packs
+        </span>
+        <span className="ml-auto font-mono text-[10px] text-zinc-600">
+          timbre only — the mapping never changes
+        </span>
+      </div>
+      <div className="flex flex-wrap items-center gap-2">
+      {PACK_META.map(({ name, label, localLabel, tagline, status, icon }) => {
         const isActive = activePack === name;
         return (
           <button
@@ -186,10 +212,19 @@ export function InstrumentPicker({ onPackChange }: InstrumentPickerProps): React
                 )}
               </span>
               <span className="truncate text-xs text-zinc-500">{tagline}</span>
+              {status === "placeholder" && (
+                <span
+                  data-testid={`pack-${name}-badge`}
+                  className="mt-0.5 inline-flex w-fit items-center rounded-full border border-amber-400/30 bg-amber-500/10 px-1.5 py-px text-[10px] font-medium text-amber-300"
+                >
+                  placeholder · awaiting community review
+                </span>
+              )}
             </span>
           </button>
         );
       })}
+      </div>
     </div>
   );
 }

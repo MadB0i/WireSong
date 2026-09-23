@@ -1,13 +1,15 @@
 {
   "id": "axom",
-  "version": 1,
+  "version": 2,
   "displayName": "Axom (Bihu)",
   "displayNameLocal": "অসম (বিহু)",
   "tagline": "Bihu folk — dotora, pepa, dhol",
   "culture": {
     "region": "Assam, India",
-    "occasion": "Bihu folk and festival music",
-    "notes": "Folk, festival and classical-scale material only. No ritual or devotional content."
+    "tradition": "Bihu folk and festival music",
+    "credits": "Folk-instrument pack. Recordings, when added, are self-recorded or CC0 (see samples/).",
+    "status": "placeholder",
+    "reviewedBy": []
   },
   "events": {
     "tcp_syn": {
@@ -82,6 +84,42 @@
     "intervalSemitones": 7,
     "comment": "Sustained Sa-Pa bed under baseline traffic; level follows packets/sec."
   },
-  "rhythm": null,
-  "festivals": []
+  "rhythm": {
+    "steps": 16,
+    "low": [1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0],
+    "high": [0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0],
+    "comment": "TODO: placeholder pattern — verify with a Bihu dhol player before calling this authentic."
+  },
+  "festivals": [
+    {
+      "id": "bohag",
+      "label": "Bohag / Rongali Bihu (spring)",
+      "labelLocal": "বহাগ / ৰঙালী বিহু",
+      "months": [3, 4],
+      "tempoRange": [130, 160],
+      "density": 1.0,
+      "droneLevel": 0.3,
+      "defaultRaga": "bhupali"
+    },
+    {
+      "id": "magh",
+      "label": "Magh / Bhogali Bihu (harvest)",
+      "labelLocal": "মাঘ / ভোগালী বিহু",
+      "months": [11, 0, 1],
+      "tempoRange": [100, 125],
+      "density": 0.7,
+      "droneLevel": 0.5,
+      "defaultRaga": "yaman"
+    },
+    {
+      "id": "kati",
+      "label": "Kati / Kongali Bihu (autumn)",
+      "labelLocal": "কাতি / কঙালী বিহু",
+      "months": [8, 9, 10],
+      "tempoRange": [80, 95],
+      "density": 0.35,
+      "droneLevel": 0.8,
+      "defaultRaga": "malkauns"
+    }
+  ]
 }

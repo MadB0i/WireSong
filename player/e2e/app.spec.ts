@@ -41,7 +41,7 @@ test("live demo streams events into every visualizer", async ({ page }) => {
 });
 
 test("instrument pack manifests are served as JSON", async ({ request }) => {
-  for (const id of ["ambient", "chiptune", "orchestral", "ensemble", "axom"]) {
+  for (const id of ["ambient", "chiptune", "orchestral", "ensemble", "axom", "bodo"]) {
     const res = await request.get(`/packs/${id}/pack.json`);
     expect(res.ok(), `/packs/${id}/pack.json serves`).toBeTruthy();
     const body = await res.json();
@@ -67,16 +67,40 @@ test("raga picker switches raga and toggles clock and meend", async ({ page }) =
   await expect(page.getByTestId("meend-toggle")).toHaveAttribute("aria-pressed", "true");
 });
 
-test("axom pack plays the demo through fallback synths", async ({ page }) => {
+test("culture packs stream the demo through fallback synths", async ({ page }) => {
+  for (const pack of ["pack-axom", "pack-bodo"]) {
+    await page.goto("/");
+    await expect(page.getByTestId("total")).toHaveText("0");
+    await page.getByTestId(pack).click();
+    await expect(page.getByTestId(pack)).toHaveAttribute("aria-pressed", "true");
+    await page.getByTestId("replay-button").click();
+    await expect(page.getByTestId("total")).not.toHaveText("0", {
+      timeout: 15_000,
+    });
+    await page.getByTestId("stop-replay-button").click();
+    await expect(page.getByTestId("replay-indicator")).toHaveCount(0);
+  }
+});
+
+test("festival picker follows the active pack calendar", async ({ page, request }) => {
   await page.goto("/");
+  // Packs without a calendar expose no festival UI.
+  await expect(page.getByTestId("festival-picker")).toHaveCount(0);
   await page.getByTestId("pack-axom").click();
-  await expect(page.getByTestId("pack-axom")).toHaveAttribute("aria-pressed", "true");
-  await page.getByTestId("replay-button").click();
-  await expect(page.getByTestId("total")).not.toHaveText("0", {
-    timeout: 15_000,
-  });
-  await page.getByTestId("stop-replay-button").click();
-  await expect(page.getByTestId("replay-indicator")).toHaveCount(0);
+  await expect(page.getByTestId("festival-picker")).toBeVisible();
+  // Festival ids come from the pack's own manifest — never hardcoded.
+  const res = await request.get("/packs/axom/pack.json");
+  const manifest = await res.json();
+  const ids: string[] = manifest.festivals.map((f: { id: string }) => f.id);
+  expect(ids.length).toBeGreaterThan(0);
+  await page.getByTestId(`festival-${ids[0]}`).click();
+  await expect(page.getByTestId(`festival-${ids[0]}`)).toHaveAttribute("aria-pressed", "true");
+  await page.getByTestId("festival-auto-toggle").click();
+  await expect(page.getByTestId("festival-auto-toggle")).toHaveAttribute("aria-pressed", "true");
+  // Placeholder packs carry a community-review badge; stock packs do not.
+  await expect(page.getByTestId("pack-axom-badge")).toContainText("awaiting community review");
+  await expect(page.getByTestId("pack-bodo-badge")).toContainText("awaiting community review");
+  await expect(page.getByTestId("pack-ambient-badge")).toHaveCount(0);
 });
 
 test("full ip view is off by default; toggle flips it", async ({ page }) => {

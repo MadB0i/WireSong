@@ -164,3 +164,51 @@ describe("loadPack", () => {
     await expect(loadPack("chiptune", failing)).rejects.toThrow('failed to load pack "chiptune"');
   });
 });
+
+describe("festival and culture metadata", () => {
+  const validFestival = {
+    id: "spring",
+    label: "Spring festival",
+    labelLocal: "festival",
+    months: [3, 4],
+    tempoRange: [120, 150],
+    density: 0.9,
+    droneLevel: 0.2,
+    defaultRaga: "bhupali",
+  };
+
+  it("accepts well-formed calendars and culture blocks", () => {
+    const def = JSON.parse(JSON.stringify(BUNDLED_PACKS.ambient));
+    def.culture = {
+      region: "Somewhere",
+      tradition: "Folk",
+      credits: "Test",
+      status: "placeholder",
+      reviewedBy: [],
+    };
+    def.festivals = [validFestival];
+    expect(validatePackDefinition("ambient", def)).toEqual([]);
+  });
+
+  it("rejects bad months, tempo ranges, levels, and ragas", () => {
+    const def = JSON.parse(JSON.stringify(BUNDLED_PACKS.ambient));
+    def.festivals = [
+      { ...validFestival, months: [] },
+      { ...validFestival, id: "bad-tempo", months: [0], tempoRange: [150, 120] },
+      { ...validFestival, id: "bad-density", months: [0], density: 2 },
+      { ...validFestival, id: "bad-raga", months: [0], defaultRaga: "" },
+    ];
+    const problems = validatePackDefinition("ambient", def);
+    expect(problems.some((p) => p.includes('"months"'))).toBe(true);
+    expect(problems.some((p) => p.includes('"tempoRange"'))).toBe(true);
+    expect(problems.some((p) => p.includes('"density"'))).toBe(true);
+    expect(problems.some((p) => p.includes('"defaultRaga"'))).toBe(true);
+  });
+
+  it("rejects unknown culture statuses", () => {
+    const def = JSON.parse(JSON.stringify(BUNDLED_PACKS.ambient));
+    def.culture = { status: "official" };
+    const problems = validatePackDefinition("ambient", def);
+    expect(problems.some((p) => p.includes('culture."status"'))).toBe(true);
+  });
+});

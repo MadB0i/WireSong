@@ -1,9 +1,10 @@
-import { useState, type ReactElement } from "react";
+import { useEffect, useState, type ReactElement } from "react";
 import {
   RAGAS,
   getActiveRagaId,
   getRagaId,
   isRagaClockEnabled,
+  onRagaChanged,
   setRaga,
   setRagaClockEnabled,
 } from "../audio/ragas";
@@ -21,6 +22,15 @@ export function RagaPicker(): ReactElement {
   const [clock, setClock] = useState(isRagaClockEnabled);
   const [glide, setGlide] = useState(getPortamentoSeconds() > 0);
   const [activeId, setActiveId] = useState(() => getActiveRagaId());
+
+  // Festival presets (and any other external selection) change the raga
+  // outside this component; refresh the display when that happens.
+  useEffect(() => {
+    return onRagaChanged(() => {
+      setRagaIdState(getRagaId());
+      setActiveId(getActiveRagaId());
+    });
+  }, []);
 
   const refreshActive = () => setActiveId(getActiveRagaId());
 

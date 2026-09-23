@@ -22,7 +22,8 @@ describe("velocityToDb", () => {
 });
 
 describe("PACKS", () => {
-  const packNames: PackName[] = ["ambient", "chiptune", "orchestral", "ensemble", "axom"];
+  // Pack ids are registry data: every registered pack must cover the backend.
+  const packNames: PackName[] = Object.keys(PACKS);
   const backendEventTypes = [
     "tcp_syn",
     "tcp_synack",

@@ -6,8 +6,8 @@ import * as Tone from "tone";
 // top-level `samples` list). Those files do not have to exist: every file is
 // probed at most once per session, and any missing/undecodable recording
 // silently resolves to null so the caller plays its fallback synth instead.
-// The Axom (Bihu) pack therefore works today with zero recordings and picks
-// recordings up automatically once they are dropped into its samples/ dir.
+// Culture packs therefore work with zero recordings and pick recordings up
+// automatically once they are added to their samples/ dir.
 
 const probeCache = new Map<string, boolean>();
 const samplers = new Map<string, Tone.Sampler>();

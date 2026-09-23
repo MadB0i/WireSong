@@ -2,6 +2,8 @@ import * as Tone from "tone";
 import type { NoteEvent } from "../ws";
 import {
   BUNDLED_PACKS,
+  getPackDef,
+  registerPackDef,
   type PackDefinition,
 } from "./packs";
 import {
@@ -389,21 +391,22 @@ function buildEnsembleAlarm(_freq: number, event: NoteEvent): Tone.Gain {
   return out;
 }
 
-// ---- Axom (Bihu) folk voices -------------------------------------------
-// Assamese Bihu folk instruments, mapped per the axom pack manifest. Every
-// voice first tries its recorded sample (when one has been dropped into the
-// pack's samples/ dir) and otherwise plays the synthesized approximation
-// below, so the pack works with zero recordings. Folk/festival use only.
+// ---- Folk voices for culture packs --------------------------------------
+// Timbre recipes referenced by culture-pack manifests (voice ids in each
+// pack's `events`). Every voice first tries its recorded sample (when one
+// has been added to the pack's samples/ dir) and otherwise plays the
+// synthesized approximation below, so culture packs work with zero
+// recordings. Folk, festival and secular material only.
 
-function tryAxomSample(freq: number, event: NoteEvent): Tone.Gain | null {
-  const axom = BUNDLED_PACKS.axom;
-  const file = axom?.events[event.event_type]?.sample;
-  if (!axom || !file) {
+function tryPackSample(freq: number, event: NoteEvent): Tone.Gain | null {
+  const def = getPackDef(getVoicePack());
+  const file = def?.events[event.event_type]?.sample;
+  if (!def || !file) {
     return null;
   }
-  const sampleMidi = axom.samples.find((s) => s.file === file)?.note ?? 72;
+  const sampleMidi = def.samples.find((s) => s.file === file)?.note ?? 72;
   return playSampledNote({
-    packId: "axom",
+    packId: def.id,
     file,
     sampleMidi,
     freqHz: freq,
@@ -413,7 +416,7 @@ function tryAxomSample(freq: number, event: NoteEvent): Tone.Gain | null {
 
 function buildDotora(freq: number, event: NoteEvent): Tone.ToneAudioNode {
   return (
-    tryAxomSample(freq, event) ??
+    tryPackSample(freq, event) ??
     (() => {
       const synth = new Tone.PluckSynth({ resonance: 0.85, dampening: 3200 });
       synth.triggerAttack(freq);
@@ -424,7 +427,7 @@ function buildDotora(freq: number, event: NoteEvent): Tone.ToneAudioNode {
 
 function buildDotoraHigh(freq: number, event: NoteEvent): Tone.ToneAudioNode {
   return (
-    tryAxomSample(freq, event) ??
+    tryPackSample(freq, event) ??
     (() => {
       const synth = new Tone.PluckSynth({ resonance: 0.85, dampening: 3800 });
       synth.triggerAttack(freq * 2);
@@ -435,7 +438,7 @@ function buildDotoraHigh(freq: number, event: NoteEvent): Tone.ToneAudioNode {
 
 function buildToka(freq: number, event: NoteEvent): Tone.ToneAudioNode {
   return (
-    tryAxomSample(freq, event) ??
+    tryPackSample(freq, event) ??
     (() => {
       const noise = new Tone.NoiseSynth({
         noise: { type: "pink" },
@@ -449,7 +452,7 @@ function buildToka(freq: number, event: NoteEvent): Tone.ToneAudioNode {
 
 function buildTaal(freq: number, event: NoteEvent): Tone.ToneAudioNode {
   return (
-    tryAxomSample(freq, event) ??
+    tryPackSample(freq, event) ??
     (() => {
       const synth = new Tone.MetalSynth({
         harmonicity: 12,
@@ -465,7 +468,7 @@ function buildTaal(freq: number, event: NoteEvent): Tone.ToneAudioNode {
 }
 
 function buildBaanhi(freq: number, event: NoteEvent): Tone.ToneAudioNode {
-  const sampled = tryAxomSample(freq, event);
+  const sampled = tryPackSample(freq, event);
   if (sampled) {
     return sampled;
   }
@@ -488,7 +491,7 @@ function buildBaanhi(freq: number, event: NoteEvent): Tone.ToneAudioNode {
 
 function buildGogona(freq: number, event: NoteEvent): Tone.ToneAudioNode {
   return (
-    tryAxomSample(freq, event) ??
+    tryPackSample(freq, event) ??
     (() => {
       const synth = new Tone.FMSynth({
         harmonicity: 2.5,
@@ -506,7 +509,7 @@ function buildGogona(freq: number, event: NoteEvent): Tone.ToneAudioNode {
 
 function buildXutuli(freq: number, event: NoteEvent): Tone.ToneAudioNode {
   return (
-    tryAxomSample(freq, event) ??
+    tryPackSample(freq, event) ??
     (() => {
       const synth = new Tone.FMSynth({
         harmonicity: 3,
@@ -548,6 +551,127 @@ function buildPepaAlarm(_freq: number, event: NoteEvent): Tone.Gain {
   return out;
 }
 
+function buildKham(freq: number, event: NoteEvent): Tone.ToneAudioNode {
+  const sampled = tryPackSample(freq, event);
+  if (sampled) {
+    return sampled;
+  }
+  const drum = new Tone.MembraneSynth({
+    pitchDecay: 0.05,
+    octaves: 5,
+    envelope: { attack: 0.001, decay: 0.25, sustain: 0, release: 0.08 },
+  });
+  drum.triggerAttackRelease("C2", 0.2);
+  return drum;
+}
+
+function buildKhamHigh(freq: number, event: NoteEvent): Tone.ToneAudioNode {
+  const sampled = tryPackSample(freq, event);
+  if (sampled) {
+    return sampled;
+  }
+  const drum = new Tone.MembraneSynth({
+    pitchDecay: 0.03,
+    octaves: 3,
+    envelope: { attack: 0.001, decay: 0.15, sustain: 0, release: 0.06 },
+  });
+  drum.triggerAttackRelease("G2", 0.15);
+  return drum;
+}
+
+function buildJotha(freq: number, event: NoteEvent): Tone.ToneAudioNode {
+  const sampled = tryPackSample(freq, event);
+  if (sampled) {
+    return sampled;
+  }
+  const synth = new Tone.MetalSynth({
+    harmonicity: 10,
+    modulationIndex: 18,
+    resonance: 6000,
+    octaves: 1.0,
+    envelope: { attack: 0.001, decay: 0.12, sustain: 0, release: 0.1 },
+  });
+  synth.triggerAttack(freq);
+  return synth;
+}
+
+function buildSiphung(freq: number, event: NoteEvent): Tone.ToneAudioNode {
+  const sampled = tryPackSample(freq, event);
+  if (sampled) {
+    return sampled;
+  }
+  if (getPortamentoSeconds() > 0) {
+    const glide = new Tone.MonoSynth({
+      oscillator: { type: "sine" },
+      envelope: { attack: 0.12, decay: 0.1, sustain: 0.7, release: 0.25 },
+      portamento: getPortamentoSeconds(),
+    });
+    glide.triggerAttackRelease(freq, event.duration_ms / 1000);
+    return glide;
+  }
+  const synth = new Tone.Synth({
+    oscillator: { type: "sine" },
+    envelope: { attack: 0.12, decay: 0.1, sustain: 0.7, release: 0.25 },
+  });
+  synth.triggerAttackRelease(freq, event.duration_ms / 1000);
+  return synth;
+}
+
+function buildSerja(freq: number, event: NoteEvent): Tone.ToneAudioNode {
+  const sampled = tryPackSample(freq, event);
+  if (sampled) {
+    return sampled;
+  }
+  if (getPortamentoSeconds() > 0) {
+    const glide = new Tone.MonoSynth({
+      oscillator: { type: "sawtooth" },
+      envelope: { attack: 0.2, decay: 0.15, sustain: 0.6, release: 0.4 },
+      portamento: getPortamentoSeconds(),
+    });
+    glide.triggerAttackRelease(freq, event.duration_ms / 1000);
+    return glide;
+  }
+  const synth = new Tone.FMSynth({
+    harmonicity: 1.4,
+    modulationIndex: 3,
+    oscillator: { type: "sawtooth" },
+    modulation: { type: "sine" },
+    envelope: { attack: 0.2, decay: 0.15, sustain: 0.6, release: 0.4 },
+    modulationEnvelope: { attack: 0.2, decay: 0.15, sustain: 0.6, release: 0.4 },
+  });
+  synth.triggerAttackRelease(freq, event.duration_ms / 1000);
+  return synth;
+}
+
+function buildKhamAlarm(_freq: number, event: NoteEvent): Tone.Gain {
+  // Always synthesized so the phrase tracks the selected raga: bowed voice
+  // states the alert phrase while the drum answers with a roll.
+  const out = new Tone.Gain(1.2);
+  const serja = new Tone.FMSynth({
+    harmonicity: 1.4,
+    modulationIndex: 5,
+    oscillator: { type: "sawtooth" },
+    modulation: { type: "sine" },
+    envelope: { attack: 0.01, decay: 0.12, sustain: 0.6, release: 0.2 },
+    modulationEnvelope: { attack: 0.01, decay: 0.12, sustain: 0.6, release: 0.2 },
+  });
+  const kham = new Tone.MembraneSynth({
+    pitchDecay: 0.04,
+    octaves: 5,
+    envelope: { attack: 0.001, decay: 0.2, sustain: 0, release: 0.06 },
+  });
+  serja.connect(out);
+  kham.connect(out);
+  const start = Tone.now() + 0.01;
+  scheduleAlarmArpeggio(serja, event, start);
+  const hits = 8;
+  const step = event.duration_ms / 1000 / hits;
+  for (let i = 0; i < hits; i++) {
+    kham.triggerAttackRelease(i % 2 === 0 ? "C2" : "G2", 0.14, start + i * step);
+  }
+  return out;
+}
+
 export const VOICE_BUILDERS: Record<string, VoiceSpec> = {
   pluck: { build: buildPluck },
   damped: { build: buildDamped },
@@ -584,6 +708,12 @@ export const VOICE_BUILDERS: Record<string, VoiceSpec> = {
   gogona: { build: buildGogona },
   xutuli: { build: buildXutuli },
   pepa_alarm: { build: buildPepaAlarm, isAlarmVoice: true },
+  kham: { build: buildKham },
+  kham_high: { build: buildKhamHigh },
+  jotha: { build: buildJotha },
+  siphung: { build: buildSiphung },
+  serja: { build: buildSerja },
+  kham_alarm: { build: buildKhamAlarm, isAlarmVoice: true },
 };
 
 export const KNOWN_VOICE_IDS: string[] = Object.keys(VOICE_BUILDERS);
@@ -615,6 +745,7 @@ export const PACKS: Record<string, Record<string, VoiceSpec>> = packTables;
 // definition references an unknown voice id; the previous table is kept.
 export function registerPackDefinition(def: PackDefinition): void {
   packTables[def.id] = voicesForPack(def);
+  registerPackDef(def);
 }
 
 let currentPack: PackName = "ambient";

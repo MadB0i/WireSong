@@ -1,0 +1,85 @@
+{
+  "id": "bodo",
+  "version": 1,
+  "displayName": "Bodo folk",
+  "tagline": "Bwisagu dance-season folk — kham, siphung, serja",
+  "culture": {
+    "region": "Assam, India",
+    "tradition": "Bodo folk and dance music",
+    "credits": "Skeleton pack — instrument list and mapping unverified; review by Bodo musicians welcome.",
+    "status": "placeholder",
+    "reviewedBy": []
+  },
+  "events": {
+    "tcp_syn": {
+      "voice": "kham",
+      "label": "Kham (drum)",
+      "role": "note",
+      "sample": null,
+      "fallbackSynth": { "kind": "MembraneSynth", "options": { "character": "kham-low" } }
+    },
+    "tcp_synack": {
+      "voice": "kham_high",
+      "label": "Kham answer (high head)",
+      "role": "note",
+      "sample": null,
+      "fallbackSynth": { "kind": "MembraneSynth", "options": { "character": "kham-high" } }
+    },
+    "tcp_rst": {
+      "voice": "jotha",
+      "label": "Jotha (small cymbals)",
+      "role": "note",
+      "sample": null,
+      "fallbackSynth": { "kind": "MetalSynth", "options": { "character": "jotha-tick" } }
+    },
+    "dns_query": {
+      "voice": "siphung",
+      "label": "Siphung (flute)",
+      "role": "note",
+      "sample": null,
+      "fallbackSynth": { "kind": "Synth", "options": { "oscillator": "sine", "character": "siphung" } }
+    },
+    "http_data": {
+      "voice": "serja",
+      "label": "Serja (bowed lute)",
+      "role": "note",
+      "sample": null,
+      "fallbackSynth": { "kind": "FMSynth", "options": { "character": "serja-bowed" } }
+    },
+    "udp": {
+      "voice": "kham",
+      "label": "Kham (drum)",
+      "role": "note",
+      "sample": null,
+      "fallbackSynth": { "kind": "MembraneSynth", "options": { "character": "kham-low" } }
+    },
+    "icmp": {
+      "voice": "siphung",
+      "label": "Siphung (flute)",
+      "role": "note",
+      "sample": null,
+      "fallbackSynth": { "kind": "Synth", "options": { "oscillator": "sine", "character": "siphung" } }
+    },
+    "port_scan_alert": {
+      "voice": "kham_alarm",
+      "label": "Serja phrase + kham roll",
+      "role": "alarm",
+      "sample": null,
+      "fallbackSynth": { "kind": "MonoSynth", "options": { "character": "serja-alarm" } }
+    }
+  },
+  "samples": [],
+  "drone": null,
+  "rhythm": null,
+  "festivals": [
+    {
+      "id": "bwisagu",
+      "label": "Bwisagu (spring festival)",
+      "months": [3, 4],
+      "tempoRange": [120, 150],
+      "density": 0.9,
+      "droneLevel": 0.2,
+      "defaultRaga": "bhupali"
+    }
+  ]
+}

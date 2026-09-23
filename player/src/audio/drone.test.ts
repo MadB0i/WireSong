@@ -104,6 +104,7 @@ const drone = await import("./drone");
 describe("Sa-Pa drone", () => {
   afterEach(() => {
     drone.stopDrone();
+    drone.setDroneScale(1);
     tone.__resetAll();
     vi.useRealTimers();
   });
@@ -131,6 +132,14 @@ describe("Sa-Pa drone", () => {
     const count = tone.__levels.length;
     drone.setDroneLevel(50);
     expect(tone.__levels).toHaveLength(count);
+  });
+
+  it("festival presets scale the bed weight", () => {
+    drone.startDrone(36, 7);
+    drone.setDroneScale(0.5);
+    expect(drone.getDroneScale()).toBe(0.5);
+    drone.setDroneLevel(20);
+    expect(tone.__levels.at(-1)).toBeCloseTo(0.055, 6);
   });
 
   it("stopDrone silences then disposes the nodes", () => {

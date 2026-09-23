@@ -1,5 +1,6 @@
 import ambientPackJson from "../packs/ambient/pack.json";
 import axomPackJson from "../packs/axom/pack.json";
+import bodoPackJson from "../packs/bodo/pack.json";
 import chiptunePackJson from "../packs/chiptune/pack.json";
 import ensemblePackJson from "../packs/ensemble/pack.json";
 import orchestralPackJson from "../packs/orchestral/pack.json";
@@ -28,7 +29,7 @@ export const EVENT_TYPES = [
 
 export type PackEventType = (typeof EVENT_TYPES)[number];
 
-export const PACK_IDS = ["ambient", "chiptune", "orchestral", "ensemble", "axom"] as const;
+export const PACK_IDS = ["ambient", "chiptune", "orchestral", "ensemble", "axom", "bodo"] as const;
 
 export type PackId = (typeof PACK_IDS)[number];
 
@@ -58,6 +59,27 @@ export interface PackRhythmDef {
   comment?: string;
 }
 
+export interface PackCultureDef {
+  region?: string;
+  tradition?: string;
+  credits?: string;
+  status?: "placeholder" | "community-reviewed";
+  reviewedBy?: string[];
+}
+
+export interface PackFestivalDef {
+  id: string;
+  label: string;
+  labelLocal?: string;
+  // Months this festival applies to, as JS Date months (0 = January).
+  // Months with no entry mean "no seasonal override".
+  months: number[];
+  tempoRange: [number, number];
+  density: number;
+  droneLevel: number;
+  defaultRaga: string;
+}
+
 export interface PackDroneDef {
   rootMidi: number;
   intervalSemitones: number;
@@ -70,11 +92,12 @@ export interface PackDefinition {
   displayName: string;
   displayNameLocal?: string;
   tagline: string;
-  culture?: Record<string, unknown>;
+  culture?: PackCultureDef;
   events: Record<string, PackEventDef>;
   samples: PackSampleDef[];
   rhythm?: PackRhythmDef | null;
   drone?: PackDroneDef | null;
+  festivals?: PackFestivalDef[];
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -184,6 +207,64 @@ export function validatePackDefinition(expectedId: string, data: unknown): strin
       }
     }
   }
+  if (data.culture !== undefined && data.culture !== null) {
+    if (!isRecord(data.culture)) {
+      errors.push(`pack "${expectedId}": "culture" must be an object or null`);
+    } else {
+      for (const key of ["region", "tradition", "credits"] as const) {
+        const value: unknown = data.culture[key];
+        if (value !== undefined && typeof value !== "string") {
+          errors.push(`pack "${expectedId}": culture."${key}" must be a string when present`);
+        }
+      }
+      const status: unknown = data.culture.status;
+      if (status !== undefined && status !== "placeholder" && status !== "community-reviewed") {
+        errors.push(`pack "${expectedId}": culture."status" must be "placeholder" or "community-reviewed"`);
+      }
+      const reviewedBy: unknown = data.culture.reviewedBy;
+      if (reviewedBy !== undefined && (!Array.isArray(reviewedBy) || !reviewedBy.every((r) => typeof r === "string"))) {
+        errors.push(`pack "${expectedId}": culture."reviewedBy" must be an array of strings`);
+      }
+    }
+  }
+  if (data.festivals !== undefined && data.festivals !== null) {
+    if (!Array.isArray(data.festivals)) {
+      errors.push(`pack "${expectedId}": "festivals" must be an array`);
+    } else {
+      data.festivals.forEach((festival: unknown, index: number) => {
+        const where = `pack "${expectedId}": festivals[${index}]`;
+        if (!isRecord(festival)) {
+          errors.push(`${where} must be an object`);
+          return;
+        }
+        if (typeof festival.id !== "string" || (festival.id as string).trim() === "") {
+          errors.push(`${where} needs a non-empty "id"`);
+        }
+        if (typeof festival.label !== "string" || (festival.label as string).trim() === "") {
+          errors.push(`${where} needs a non-empty "label"`);
+        }
+        if (festival.labelLocal !== undefined && (typeof festival.labelLocal !== "string" || (festival.labelLocal as string).trim() === "")) {
+          errors.push(`${where} "labelLocal" must be a non-empty string when present`);
+        }
+        if (!Array.isArray(festival.months) || (festival.months as unknown[]).length === 0 || !(festival.months as unknown[]).every((m) => Number.isInteger(m) && (m as number) >= 0 && (m as number) <= 11)) {
+          errors.push(`${where} needs a non-empty "months" array of JS months (0-11)`);
+        }
+        const tempoRange: unknown = festival.tempoRange;
+        if (!Array.isArray(tempoRange) || tempoRange.length !== 2 || !(tempoRange as unknown[]).every((t) => typeof t === "number") || (tempoRange as number[])[0] < 40 || (tempoRange as number[])[1] > 240 || (tempoRange as number[])[0] >= (tempoRange as number[])[1]) {
+          errors.push(`${where} needs "tempoRange" as [min, max] BPM (40-240, min < max)`);
+        }
+        for (const key of ["density", "droneLevel"] as const) {
+          const value: unknown = festival[key];
+          if (typeof value !== "number" || value < 0 || value > 1) {
+            errors.push(`${where} needs "${key}" as a number in 0..1`);
+          }
+        }
+        if (typeof festival.defaultRaga !== "string" || (festival.defaultRaga as string).trim() === "") {
+          errors.push(`${where} needs a non-empty "defaultRaga"`);
+        }
+      });
+    }
+  }
   return errors;
 }
 
@@ -223,12 +304,25 @@ export async function loadPack(id: string, fetchFn: FetchFn = fetch as unknown a
 const bundled: Record<string, PackDefinition> = {
   ambient: ambientPackJson as unknown as PackDefinition,
   axom: axomPackJson as unknown as PackDefinition,
+  bodo: bodoPackJson as unknown as PackDefinition,
   chiptune: chiptunePackJson as unknown as PackDefinition,
   ensemble: ensemblePackJson as unknown as PackDefinition,
   orchestral: orchestralPackJson as unknown as PackDefinition,
 };
 
 export const BUNDLED_PACKS: Record<string, PackDefinition> = bundled;
+
+// Runtime-registered definitions (re-fetched manifests, user-added packs).
+// The bundled copy is the fallback; lookups never throw.
+const runtimeDefs: Record<string, PackDefinition> = {};
+
+export function registerPackDef(def: PackDefinition): void {
+  runtimeDefs[def.id] = def;
+}
+
+export function getPackDef(id: string): PackDefinition | undefined {
+  return runtimeDefs[id] ?? bundled[id];
+}
 
 export function getBundledPack(id: string): PackDefinition {
   const def = bundled[id];
