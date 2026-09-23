@@ -1,0 +1,87 @@
+{
+  "id": "axom",
+  "version": 1,
+  "displayName": "Axom (Bihu)",
+  "displayNameLocal": "অসম (বিহু)",
+  "tagline": "Bihu folk — dotora, pepa, dhol",
+  "culture": {
+    "region": "Assam, India",
+    "occasion": "Bihu folk and festival music",
+    "notes": "Folk, festival and classical-scale material only. No ritual or devotional content."
+  },
+  "events": {
+    "tcp_syn": {
+      "voice": "dotora",
+      "label": "Dotora (plucked lute)",
+      "role": "note",
+      "sample": "samples/dotora-C5.mp3",
+      "fallbackSynth": { "kind": "PluckSynth", "options": { "character": "dotora" } }
+    },
+    "tcp_synack": {
+      "voice": "dotora_high",
+      "label": "Dotora answer (octave up)",
+      "role": "note",
+      "sample": "samples/dotora-G5.mp3",
+      "fallbackSynth": { "kind": "PluckSynth", "options": { "character": "dotora" }, "transposeSemitones": 12 }
+    },
+    "tcp_rst": {
+      "voice": "toka",
+      "label": "Toka (bamboo clapper)",
+      "role": "note",
+      "sample": "samples/toka.mp3",
+      "fallbackSynth": { "kind": "NoiseSynth", "options": { "character": "clapper", "duration": 0.06 } }
+    },
+    "dns_query": {
+      "voice": "taal",
+      "label": "Taal (small cymbals)",
+      "role": "note",
+      "sample": "samples/taal.mp3",
+      "fallbackSynth": { "kind": "MetalSynth", "options": { "character": "small-cymbals" } }
+    },
+    "http_data": {
+      "voice": "baanhi",
+      "label": "Baanhi (bamboo flute)",
+      "role": "note",
+      "sample": "samples/baanhi-C5.mp3",
+      "fallbackSynth": { "kind": "Synth", "options": { "oscillator": "sine", "character": "bamboo-flute" } }
+    },
+    "udp": {
+      "voice": "gogona",
+      "label": "Gogona (bamboo reed)",
+      "role": "note",
+      "sample": "samples/gogona-C4.mp3",
+      "fallbackSynth": { "kind": "FMSynth", "options": { "character": "reed-twang" } }
+    },
+    "icmp": {
+      "voice": "xutuli",
+      "label": "Xutuli (clay whistle)",
+      "role": "note",
+      "sample": "samples/xutuli-G5.mp3",
+      "fallbackSynth": { "kind": "FMSynth", "options": { "character": "soft-whistle" } }
+    },
+    "port_scan_alert": {
+      "voice": "pepa_alarm",
+      "label": "Pepa phrase + dhol roll",
+      "role": "alarm",
+      "sample": "samples/pepa-C5.mp3",
+      "fallbackSynth": { "kind": "MonoSynth", "options": { "character": "reed-pipe-alarm" } }
+    }
+  },
+  "samples": [
+    { "note": 72, "file": "samples/dotora-C5.mp3" },
+    { "note": 79, "file": "samples/dotora-G5.mp3" },
+    { "note": 72, "file": "samples/toka.mp3" },
+    { "note": 72, "file": "samples/taal.mp3" },
+    { "note": 72, "file": "samples/baanhi-C5.mp3" },
+    { "note": 60, "file": "samples/gogona-C4.mp3" },
+    { "note": 79, "file": "samples/xutuli-G5.mp3" },
+    { "note": 72, "file": "samples/pepa-C5.mp3" }
+  ],
+  "drone": {
+    "rootMidi": 36,
+    "intervalSemitones": 7,
+    "comment": "Sustained Sa-Pa bed under baseline traffic; level follows packets/sec."
+  },
+  "rhythm": null,
+  "festivals": []
+}

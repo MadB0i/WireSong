@@ -22,7 +22,7 @@ describe("velocityToDb", () => {
 });
 
 describe("PACKS", () => {
-  const packNames: PackName[] = ["ambient", "chiptune", "orchestral", "ensemble"];
+  const packNames: PackName[] = ["ambient", "chiptune", "orchestral", "ensemble", "axom"];
   const backendEventTypes = [
     "tcp_syn",
     "tcp_synack",

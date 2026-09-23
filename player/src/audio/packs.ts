@@ -1,4 +1,5 @@
 import ambientPackJson from "../packs/ambient/pack.json";
+import axomPackJson from "../packs/axom/pack.json";
 import chiptunePackJson from "../packs/chiptune/pack.json";
 import ensemblePackJson from "../packs/ensemble/pack.json";
 import orchestralPackJson from "../packs/orchestral/pack.json";
@@ -27,7 +28,7 @@ export const EVENT_TYPES = [
 
 export type PackEventType = (typeof EVENT_TYPES)[number];
 
-export const PACK_IDS = ["ambient", "chiptune", "orchestral", "ensemble"] as const;
+export const PACK_IDS = ["ambient", "chiptune", "orchestral", "ensemble", "axom"] as const;
 
 export type PackId = (typeof PACK_IDS)[number];
 
@@ -57,14 +58,23 @@ export interface PackRhythmDef {
   comment?: string;
 }
 
+export interface PackDroneDef {
+  rootMidi: number;
+  intervalSemitones: number;
+  comment?: string;
+}
+
 export interface PackDefinition {
   id: string;
   version: number;
   displayName: string;
+  displayNameLocal?: string;
   tagline: string;
+  culture?: Record<string, unknown>;
   events: Record<string, PackEventDef>;
   samples: PackSampleDef[];
   rhythm?: PackRhythmDef | null;
+  drone?: PackDroneDef | null;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -86,6 +96,9 @@ export function validatePackDefinition(expectedId: string, data: unknown): strin
   }
   if (typeof data.displayName !== "string" || data.displayName.trim() === "") {
     errors.push(`pack "${expectedId}": "displayName" must be a non-empty string`);
+  }
+  if (data.displayNameLocal !== undefined && (typeof data.displayNameLocal !== "string" || data.displayNameLocal.trim() === "")) {
+    errors.push(`pack "${expectedId}": "displayNameLocal" must be a non-empty string when present`);
   }
   if (typeof data.tagline !== "string" || data.tagline.trim() === "") {
     errors.push(`pack "${expectedId}": "tagline" must be a non-empty string`);
@@ -157,6 +170,20 @@ export function validatePackDefinition(expectedId: string, data: unknown): strin
       }
     }
   }
+  if (data.drone !== undefined && data.drone !== null) {
+    if (!isRecord(data.drone)) {
+      errors.push(`pack "${expectedId}": "drone" must be an object or null`);
+    } else {
+      const rootMidi: unknown = data.drone.rootMidi;
+      const interval: unknown = data.drone.intervalSemitones;
+      if (!Number.isInteger(rootMidi) || (rootMidi as number) < 0 || (rootMidi as number) > 127) {
+        errors.push(`pack "${expectedId}": drone needs an integer "rootMidi" (0-127)`);
+      }
+      if (!Number.isInteger(interval) || (interval as number) < -24 || (interval as number) > 24) {
+        errors.push(`pack "${expectedId}": drone needs an integer "intervalSemitones" (-24..24)`);
+      }
+    }
+  }
   return errors;
 }
 
@@ -195,6 +222,7 @@ export async function loadPack(id: string, fetchFn: FetchFn = fetch as unknown a
 
 const bundled: Record<string, PackDefinition> = {
   ambient: ambientPackJson as unknown as PackDefinition,
+  axom: axomPackJson as unknown as PackDefinition,
   chiptune: chiptunePackJson as unknown as PackDefinition,
   ensemble: ensemblePackJson as unknown as PackDefinition,
   orchestral: orchestralPackJson as unknown as PackDefinition,

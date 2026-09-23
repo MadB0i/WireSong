@@ -41,7 +41,7 @@ test("live demo streams events into every visualizer", async ({ page }) => {
 });
 
 test("instrument pack manifests are served as JSON", async ({ request }) => {
-  for (const id of ["ambient", "chiptune", "orchestral", "ensemble"]) {
+  for (const id of ["ambient", "chiptune", "orchestral", "ensemble", "axom"]) {
     const res = await request.get(`/packs/${id}/pack.json`);
     expect(res.ok(), `/packs/${id}/pack.json serves`).toBeTruthy();
     const body = await res.json();
@@ -65,6 +65,18 @@ test("raga picker switches raga and toggles clock and meend", async ({ page }) =
   await expect(page.getByTestId("raga-clock-toggle")).toHaveAttribute("aria-pressed", "true");
   await page.getByTestId("meend-toggle").click();
   await expect(page.getByTestId("meend-toggle")).toHaveAttribute("aria-pressed", "true");
+});
+
+test("axom pack plays the demo through fallback synths", async ({ page }) => {
+  await page.goto("/");
+  await page.getByTestId("pack-axom").click();
+  await expect(page.getByTestId("pack-axom")).toHaveAttribute("aria-pressed", "true");
+  await page.getByTestId("replay-button").click();
+  await expect(page.getByTestId("total")).not.toHaveText("0", {
+    timeout: 15_000,
+  });
+  await page.getByTestId("stop-replay-button").click();
+  await expect(page.getByTestId("replay-indicator")).toHaveCount(0);
 });
 
 test("full ip view is off by default; toggle flips it", async ({ page }) => {

@@ -10,6 +10,7 @@ import {
   getActiveRaga,
   ragaDegreeToMidi,
 } from "./ragas";
+import { playSampledNote } from "./samples";
 
 // Instrument packs are data-driven: player/public/packs/<id>/pack.json is
 // the source of truth for the event -> voice mapping (plus sample manifest
@@ -388,6 +389,165 @@ function buildEnsembleAlarm(_freq: number, event: NoteEvent): Tone.Gain {
   return out;
 }
 
+// ---- Axom (Bihu) folk voices -------------------------------------------
+// Assamese Bihu folk instruments, mapped per the axom pack manifest. Every
+// voice first tries its recorded sample (when one has been dropped into the
+// pack's samples/ dir) and otherwise plays the synthesized approximation
+// below, so the pack works with zero recordings. Folk/festival use only.
+
+function tryAxomSample(freq: number, event: NoteEvent): Tone.Gain | null {
+  const axom = BUNDLED_PACKS.axom;
+  const file = axom?.events[event.event_type]?.sample;
+  if (!axom || !file) {
+    return null;
+  }
+  const sampleMidi = axom.samples.find((s) => s.file === file)?.note ?? 72;
+  return playSampledNote({
+    packId: "axom",
+    file,
+    sampleMidi,
+    freqHz: freq,
+    durationSec: Math.max(event.duration_ms, 30) / 1000,
+  });
+}
+
+function buildDotora(freq: number, event: NoteEvent): Tone.ToneAudioNode {
+  return (
+    tryAxomSample(freq, event) ??
+    (() => {
+      const synth = new Tone.PluckSynth({ resonance: 0.85, dampening: 3200 });
+      synth.triggerAttack(freq);
+      return synth;
+    })()
+  );
+}
+
+function buildDotoraHigh(freq: number, event: NoteEvent): Tone.ToneAudioNode {
+  return (
+    tryAxomSample(freq, event) ??
+    (() => {
+      const synth = new Tone.PluckSynth({ resonance: 0.85, dampening: 3800 });
+      synth.triggerAttack(freq * 2);
+      return synth;
+    })()
+  );
+}
+
+function buildToka(freq: number, event: NoteEvent): Tone.ToneAudioNode {
+  return (
+    tryAxomSample(freq, event) ??
+    (() => {
+      const noise = new Tone.NoiseSynth({
+        noise: { type: "pink" },
+        envelope: { attack: 0.001, decay: 0.045, sustain: 0, release: 0.02 },
+      });
+      noise.triggerAttackRelease(0.05);
+      return noise;
+    })()
+  );
+}
+
+function buildTaal(freq: number, event: NoteEvent): Tone.ToneAudioNode {
+  return (
+    tryAxomSample(freq, event) ??
+    (() => {
+      const synth = new Tone.MetalSynth({
+        harmonicity: 12,
+        modulationIndex: 24,
+        resonance: 5000,
+        octaves: 1.2,
+        envelope: { attack: 0.001, decay: 0.25, sustain: 0, release: 0.2 },
+      });
+      synth.triggerAttack(freq);
+      return synth;
+    })()
+  );
+}
+
+function buildBaanhi(freq: number, event: NoteEvent): Tone.ToneAudioNode {
+  const sampled = tryAxomSample(freq, event);
+  if (sampled) {
+    return sampled;
+  }
+  if (getPortamentoSeconds() > 0) {
+    const glide = new Tone.MonoSynth({
+      oscillator: { type: "sine" },
+      envelope: { attack: 0.25, decay: 0.15, sustain: 0.7, release: 0.4 },
+      portamento: getPortamentoSeconds(),
+    });
+    glide.triggerAttackRelease(freq, event.duration_ms / 1000);
+    return glide;
+  }
+  const synth = new Tone.Synth({
+    oscillator: { type: "sine" },
+    envelope: { attack: 0.25, decay: 0.15, sustain: 0.7, release: 0.4 },
+  });
+  synth.triggerAttackRelease(freq, event.duration_ms / 1000);
+  return synth;
+}
+
+function buildGogona(freq: number, event: NoteEvent): Tone.ToneAudioNode {
+  return (
+    tryAxomSample(freq, event) ??
+    (() => {
+      const synth = new Tone.FMSynth({
+        harmonicity: 2.5,
+        modulationIndex: 12,
+        oscillator: { type: "square" },
+        modulation: { type: "sine" },
+        envelope: { attack: 0.002, decay: 0.15, sustain: 0, release: 0.08 },
+        modulationEnvelope: { attack: 0.002, decay: 0.15, sustain: 0, release: 0.08 },
+      });
+      synth.triggerAttack(freq);
+      return synth;
+    })()
+  );
+}
+
+function buildXutuli(freq: number, event: NoteEvent): Tone.ToneAudioNode {
+  return (
+    tryAxomSample(freq, event) ??
+    (() => {
+      const synth = new Tone.FMSynth({
+        harmonicity: 3,
+        modulationIndex: 3,
+        oscillator: { type: "sine" },
+        modulation: { type: "sine" },
+        envelope: { attack: 0.08, decay: 0.1, sustain: 0.5, release: 0.25 },
+        modulationEnvelope: { attack: 0.08, decay: 0.1, sustain: 0.5, release: 0.25 },
+      });
+      synth.triggerAttack(freq);
+      return synth;
+    })()
+  );
+}
+
+function buildPepaAlarm(_freq: number, event: NoteEvent): Tone.Gain {
+  // Always synthesized: the phrase must track the selected raga, which a
+  // single held pepa recording cannot do. Reedy pipe states the alert
+  // phrase while the dhol answers with a roll — loudest voice in the mix.
+  const out = new Tone.Gain(1.2);
+  const pepa = new Tone.MonoSynth({
+    oscillator: { type: "sawtooth" },
+    envelope: { attack: 0.01, decay: 0.1, sustain: 0.7, release: 0.2 },
+  });
+  const dhol = new Tone.MembraneSynth({
+    pitchDecay: 0.04,
+    octaves: 4,
+    envelope: { attack: 0.001, decay: 0.18, sustain: 0, release: 0.05 },
+  });
+  pepa.connect(out);
+  dhol.connect(out);
+  const start = Tone.now() + 0.01;
+  scheduleAlarmArpeggio(pepa, event, start);
+  const hits = 8;
+  const step = event.duration_ms / 1000 / hits;
+  for (let i = 0; i < hits; i++) {
+    dhol.triggerAttackRelease(i % 2 === 0 ? "C2" : "G2", 0.12, start + i * step);
+  }
+  return out;
+}
+
 export const VOICE_BUILDERS: Record<string, VoiceSpec> = {
   pluck: { build: buildPluck },
   damped: { build: buildDamped },
@@ -416,6 +576,14 @@ export const VOICE_BUILDERS: Record<string, VoiceSpec> = {
   guitar_staccato: { build: buildGuitarStaccato },
   bass_octave: { build: buildBassOctave },
   ensemble_alarm: { build: buildEnsembleAlarm, isAlarmVoice: true },
+  dotora: { build: buildDotora },
+  dotora_high: { build: buildDotoraHigh },
+  toka: { build: buildToka },
+  taal: { build: buildTaal },
+  baanhi: { build: buildBaanhi },
+  gogona: { build: buildGogona },
+  xutuli: { build: buildXutuli },
+  pepa_alarm: { build: buildPepaAlarm, isAlarmVoice: true },
 };
 
 export const KNOWN_VOICE_IDS: string[] = Object.keys(VOICE_BUILDERS);

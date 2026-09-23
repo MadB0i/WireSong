@@ -5,6 +5,8 @@ import {
   playNoteEvent,
   setAudioMuted,
 } from "./audio/synth";
+import { setDroneLevel, startDrone, stopDrone } from "./audio/drone";
+import { BUNDLED_PACKS } from "./audio/packs";
 import { startReplay } from "./replay";
 import { recordAnalytics, resetAnalytics } from "./analytics";
 import { captureShareEvent } from "./share";
@@ -30,6 +32,15 @@ import {
 
 const DEFAULT_URL = "ws://localhost:3000/ws";
 const BANNER_MS = 3000;
+const DRONE_PACK_ID = "axom";
+
+function droneRoot(): { rootMidi: number; fifthSemitones: number } {
+  const drone = BUNDLED_PACKS[DRONE_PACK_ID]?.drone;
+  return {
+    rootMidi: drone?.rootMidi ?? 36,
+    fifthSemitones: drone?.intervalSemitones ?? 7,
+  };
+}
 
 const STATUS_COLORS: Record<WireSongStatus, string> = {
   connecting: "bg-amber-400",
@@ -71,10 +82,33 @@ function App() {
   const bannerTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const eventBufferRef = useRef<TimestampedNoteEvent[]>([]);
   const replayRef = useRef<{ stop: () => void } | null>(null);
+  const packRef = useRef<string>("ambient");
 
   const enableAudio = useCallback(() => {
-    void initAudio().then(() => setAudioOn(isAudioStarted()));
+    void initAudio().then(() => {
+      setAudioOn(isAudioStarted());
+      if (isAudioStarted() && packRef.current === DRONE_PACK_ID) {
+        const { rootMidi, fifthSemitones } = droneRoot();
+        startDrone(rootMidi, fifthSemitones);
+      }
+    });
   }, []);
+
+  const handlePackChange = useCallback(
+    (pack: string) => {
+      packRef.current = pack;
+      if (!isAudioStarted()) {
+        return;
+      }
+      if (pack === DRONE_PACK_ID) {
+        const { rootMidi, fifthSemitones } = droneRoot();
+        startDrone(rootMidi, fifthSemitones);
+      } else {
+        stopDrone();
+      }
+    },
+    [],
+  );
 
   const toggleAudio = useCallback(() => {
     if (!audioOn) {
@@ -147,6 +181,9 @@ function App() {
       const cutoff = Date.now() - 1000;
       timestampsRef.current = timestampsRef.current.filter((t) => t >= cutoff);
       setPerSecond(timestampsRef.current.length);
+      if (packRef.current === DRONE_PACK_ID) {
+        setDroneLevel(timestampsRef.current.length);
+      }
     }, 500);
     return () => clearInterval(interval);
   }, []);
@@ -157,6 +194,7 @@ function App() {
       connectionRef.current = null;
       replayRef.current?.stop();
       replayRef.current = null;
+      stopDrone();
       if (bannerTimerRef.current !== null) {
         clearTimeout(bannerTimerRef.current);
       }
@@ -347,7 +385,7 @@ function App() {
           )}
 
           <div className="mt-2 border-t border-white/5 pt-2">
-            <InstrumentPicker />
+            <InstrumentPicker onPackChange={handlePackChange} />
           </div>
           <div className="mt-2 border-t border-white/5 pt-2">
             <RagaPicker />

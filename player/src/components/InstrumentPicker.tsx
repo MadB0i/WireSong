@@ -5,6 +5,7 @@ import { BUNDLED_PACKS, PACK_IDS, ensurePacksFromNetwork } from "../audio/packs"
 interface PackMeta {
   name: PackName;
   label: string;
+  localLabel?: string;
   tagline: string;
   icon: ReactElement;
 }
@@ -75,6 +76,19 @@ const PACK_ICONS: Record<string, ReactElement> = {
       <path d="M5 19h14" />
     </svg>
   ),
+  axom: (
+    <svg
+      viewBox="0 0 24 24"
+      className="h-5 w-5"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+    >
+      <ellipse cx="12" cy="13" rx="7" ry="4.5" />
+      <path d="M5 9l-2.5-4M19 9l2.5-4" />
+    </svg>
+  ),
 };
 
 // Display metadata comes from the pack.json files (single source of truth);
@@ -82,6 +96,7 @@ const PACK_ICONS: Record<string, ReactElement> = {
 const PACK_META: PackMeta[] = PACK_IDS.map((id) => ({
   name: id,
   label: BUNDLED_PACKS[id].displayName,
+  localLabel: BUNDLED_PACKS[id].displayNameLocal,
   tagline: BUNDLED_PACKS[id].tagline,
   icon: PACK_ICONS[id] ?? FALLBACK_ICON,
 }));
@@ -127,9 +142,9 @@ export function InstrumentPicker({ onPackChange }: InstrumentPickerProps): React
   return (
     <div
       data-testid="instrument-picker"
-      className="flex items-center gap-2 rounded-2xl border border-white/10 bg-black/25 p-1.5 backdrop-blur-md"
+      className="flex flex-wrap items-center gap-2 rounded-2xl border border-white/10 bg-black/25 p-1.5 backdrop-blur-md"
     >
-      {PACK_META.map(({ name, label, tagline, icon }) => {
+      {PACK_META.map(({ name, label, localLabel, tagline, icon }) => {
         const isActive = activePack === name;
         return (
           <button
@@ -158,6 +173,9 @@ export function InstrumentPicker({ onPackChange }: InstrumentPickerProps): React
                   className={isActive ? "text-sm font-semibold text-aurora-200" : "text-sm font-medium text-zinc-300 group-hover:text-zinc-100"}
                 >
                   {label}
+                  {localLabel !== undefined && (
+                    <span className="ml-1.5 font-normal text-zinc-500">{localLabel}</span>
+                  )}
                 </span>
                 {isActive && (
                   <span className="pack-wave flex h-3 items-end gap-[2px]">
