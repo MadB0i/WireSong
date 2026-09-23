@@ -9,6 +9,7 @@ import { startReplay } from "./replay";
 import { recordAnalytics, resetAnalytics } from "./analytics";
 import { captureShareEvent } from "./share";
 import { InstrumentPicker } from "./components/InstrumentPicker";
+import { RagaPicker } from "./components/RagaPicker";
 import {
   PianoRoll,
   EVENT_TYPE_COLORS,
@@ -347,6 +348,9 @@ function App() {
 
           <div className="mt-2 border-t border-white/5 pt-2">
             <InstrumentPicker />
+          </div>
+          <div className="mt-2 border-t border-white/5 pt-2">
+            <RagaPicker />
           </div>
         </section>
 

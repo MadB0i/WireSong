@@ -1,0 +1,67 @@
+{
+  "id": "ambient",
+  "version": 1,
+  "displayName": "Ambient",
+  "tagline": "soft pads & plucks",
+  "events": {
+    "tcp_syn": {
+      "voice": "pluck",
+      "label": "Pluck",
+      "role": "note",
+      "sample": null,
+      "fallbackSynth": { "kind": "PluckSynth" }
+    },
+    "tcp_synack": {
+      "voice": "pluck",
+      "label": "Answering pluck",
+      "role": "note",
+      "sample": null,
+      "fallbackSynth": { "kind": "PluckSynth" }
+    },
+    "tcp_rst": {
+      "voice": "damped",
+      "label": "Damped tick",
+      "role": "note",
+      "sample": null,
+      "fallbackSynth": { "kind": "Synth", "options": { "oscillator": "square", "envelope": "short" } }
+    },
+    "dns_query": {
+      "voice": "bell",
+      "label": "Bell",
+      "role": "note",
+      "sample": null,
+      "fallbackSynth": { "kind": "MetalSynth" }
+    },
+    "http_data": {
+      "voice": "pad",
+      "label": "Soft pad",
+      "role": "note",
+      "sample": null,
+      "fallbackSynth": { "kind": "Synth", "options": { "oscillator": "sine", "envelope": "slow" } }
+    },
+    "udp": {
+      "voice": "pizzicato",
+      "label": "Pizzicato",
+      "role": "note",
+      "sample": null,
+      "fallbackSynth": { "kind": "Synth", "options": { "oscillator": "triangle", "envelope": "pluck" } }
+    },
+    "icmp": {
+      "voice": "sine",
+      "label": "Soft sine",
+      "role": "note",
+      "sample": null,
+      "fallbackSynth": { "kind": "Synth", "options": { "oscillator": "sine", "envelope": "soft" } }
+    },
+    "port_scan_alert": {
+      "voice": "alarm_arpeggio",
+      "label": "Alarm arpeggio",
+      "role": "alarm",
+      "sample": null,
+      "fallbackSynth": { "kind": "Synth", "options": { "oscillator": "sawtooth", "envelope": "alarm" } }
+    }
+  },
+  "samples": [],
+  "rhythm": null,
+  "festivals": []
+}

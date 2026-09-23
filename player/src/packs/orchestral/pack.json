@@ -1,0 +1,67 @@
+{
+  "id": "orchestral",
+  "version": 1,
+  "displayName": "Orchestral",
+  "tagline": "strings, brass & celesta",
+  "events": {
+    "tcp_syn": {
+      "voice": "orch_strings",
+      "label": "Strings",
+      "role": "note",
+      "sample": null,
+      "fallbackSynth": { "kind": "FMSynth", "options": { "character": "strings" } }
+    },
+    "tcp_synack": {
+      "voice": "orch_strings_bright",
+      "label": "Bright strings",
+      "role": "note",
+      "sample": null,
+      "fallbackSynth": { "kind": "FMSynth", "options": { "character": "strings-bright" } }
+    },
+    "tcp_rst": {
+      "voice": "orch_brass_hit",
+      "label": "Brass hit",
+      "role": "note",
+      "sample": null,
+      "fallbackSynth": { "kind": "FMSynth", "options": { "character": "brass-hit" } }
+    },
+    "dns_query": {
+      "voice": "orch_celesta",
+      "label": "Celesta",
+      "role": "note",
+      "sample": null,
+      "fallbackSynth": { "kind": "MetalSynth", "options": { "character": "celesta" } }
+    },
+    "http_data": {
+      "voice": "orch_strings_sustain",
+      "label": "Sustained strings",
+      "role": "note",
+      "sample": null,
+      "fallbackSynth": { "kind": "FMSynth", "options": { "character": "strings-sustain" } }
+    },
+    "udp": {
+      "voice": "orch_pizz",
+      "label": "Pizzicato",
+      "role": "note",
+      "sample": null,
+      "fallbackSynth": { "kind": "Synth", "options": { "character": "pizzicato" } }
+    },
+    "icmp": {
+      "voice": "orch_flute",
+      "label": "Flute",
+      "role": "note",
+      "sample": null,
+      "fallbackSynth": { "kind": "Synth", "options": { "oscillator": "sine", "character": "flute" } }
+    },
+    "port_scan_alert": {
+      "voice": "orch_brass_stab",
+      "label": "Brass alarm",
+      "role": "alarm",
+      "sample": null,
+      "fallbackSynth": { "kind": "FMSynth", "options": { "character": "brass-alarm" } }
+    }
+  },
+  "samples": [],
+  "rhythm": null,
+  "festivals": []
+}

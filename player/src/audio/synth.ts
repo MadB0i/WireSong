@@ -4,6 +4,12 @@ import {
   BUNDLED_PACKS,
   type PackDefinition,
 } from "./packs";
+import {
+  alertMidis,
+  degreeForEvent,
+  getActiveRaga,
+  ragaDegreeToMidi,
+} from "./ragas";
 
 // Instrument packs are data-driven: player/public/packs/<id>/pack.json is
 // the source of truth for the event -> voice mapping (plus sample manifest
@@ -63,8 +69,9 @@ function scheduleDispose(disposeAfterMs: number, nodes: Tone.ToneAudioNode[]): v
   setTimeout(() => disposeChain(nodes), disposeAfterMs);
 }
 
-const ALARM_OFFSETS = [0, 3, 6, 7];
-
+// Port-scan alarm: the selected raga's four-note alert phrase (scale
+// degrees, so it always stays inside the raga). Default (Bhupali) keeps the
+// established character: four rising notes, loudest in the mix, inbound.
 function scheduleAlarmArpeggio(
   synth: Tone.Synth | Tone.FMSynth | Tone.MonoSynth | Tone.PluckSynth,
   event: NoteEvent,
@@ -72,9 +79,9 @@ function scheduleAlarmArpeggio(
   freqScale = 1,
 ): void {
   const stepSeconds = Math.max(event.duration_ms / 4, 30) / 1000;
-  ALARM_OFFSETS.forEach((offset, index) => {
+  alertMidis(getActiveRaga()).forEach((midi, index) => {
     synth.triggerAttackRelease(
-      midiToFrequency(event.pitch + offset) * freqScale,
+      midiToFrequency(midi) * freqScale,
       stepSeconds,
       start + index * stepSeconds,
     );
@@ -104,7 +111,16 @@ function buildBell(freq: number): Tone.MetalSynth {
   return synth;
 }
 
-function buildPad(freq: number, event: NoteEvent): Tone.Synth {
+function buildPad(freq: number, event: NoteEvent): Tone.Synth | Tone.MonoSynth {
+  if (getPortamentoSeconds() > 0) {
+    const glide = new Tone.MonoSynth({
+      oscillator: { type: "sine" },
+      envelope: { attack: 0.3, decay: 0.2, sustain: 0.6, release: 0.8 },
+      portamento: getPortamentoSeconds(),
+    });
+    glide.triggerAttackRelease(freq, event.duration_ms / 1000);
+    return glide;
+  }
   const synth = new Tone.Synth({
     oscillator: { type: "sine" },
     envelope: { attack: 0.3, decay: 0.2, sustain: 0.6, release: 0.8 },
@@ -250,7 +266,16 @@ function buildOrchCelesta(freq: number): Tone.MetalSynth {
   return synth;
 }
 
-function buildOrchStringsSustain(freq: number, event: NoteEvent): Tone.FMSynth {
+function buildOrchStringsSustain(freq: number, event: NoteEvent): Tone.FMSynth | Tone.MonoSynth {
+  if (getPortamentoSeconds() > 0) {
+    const glide = new Tone.MonoSynth({
+      oscillator: { type: "sine" },
+      envelope: { attack: 0.6, decay: 0.2, sustain: 0.8, release: 1.0 },
+      portamento: getPortamentoSeconds(),
+    });
+    glide.triggerAttackRelease(freq, event.duration_ms / 1000);
+    return glide;
+  }
   const synth = new Tone.FMSynth({
     harmonicity: 1.1,
     modulationIndex: 1.5,
@@ -274,7 +299,16 @@ function buildOrchPizz(freq: number): Tone.Filter {
   return filter;
 }
 
-function buildOrchFlute(freq: number): Tone.Synth {
+function buildOrchFlute(freq: number): Tone.Synth | Tone.MonoSynth {
+  if (getPortamentoSeconds() > 0) {
+    const glide = new Tone.MonoSynth({
+      oscillator: { type: "sine" },
+      envelope: { attack: 0.15, decay: 0.1, sustain: 0.7, release: 0.3 },
+      portamento: getPortamentoSeconds(),
+    });
+    glide.triggerAttack(freq);
+    return glide;
+  }
   const synth = new Tone.Synth({
     oscillator: { type: "sine" },
     envelope: { attack: 0.15, decay: 0.1, sustain: 0.7, release: 0.3 },
@@ -417,6 +451,21 @@ export function registerPackDefinition(def: PackDefinition): void {
 
 let currentPack: PackName = "ambient";
 
+// Meend (glide) for melodic voices: seconds of portamento applied by the
+// sustained builders (pad, orchestral sustain/flute). Zero (default) keeps
+// the exact original code path, so default sound is unchanged.
+let glideSeconds = 0;
+
+export const MEEND_GLIDE_SECONDS = 0.12;
+
+export function setPortamentoSeconds(seconds: number): void {
+  glideSeconds = Math.max(0, seconds);
+}
+
+export function getPortamentoSeconds(): number {
+  return glideSeconds;
+}
+
 let masterBus: Tone.Gain | null = null;
 
 export function getMasterBus(): Tone.Gain {
@@ -445,7 +494,13 @@ export function playNoteEvent(event: NoteEvent): void {
   }
   const table = PACKS[currentPack] ?? PACKS.ambient;
   const voice = table[event.event_type] ?? table.icmp;
-  const freq = midiToFrequency(event.pitch);
+  // Melodic notes go through the active raga (degree -> raga note). With the
+  // default Bhupali raga this reproduces event.pitch exactly. Alerts carry
+  // their phrase in the alarm builders; the pitch here is unused by them.
+  const freq =
+    event.event_type === "port_scan_alert"
+      ? midiToFrequency(event.pitch)
+      : midiToFrequency(ragaDegreeToMidi(getActiveRaga(), degreeForEvent(event)));
   const node = voice.build(freq, event);
 
   const panner = new Tone.Panner(event.pan);

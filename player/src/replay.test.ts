@@ -22,6 +22,19 @@ describe("startReplay", () => {
     expect(onComplete).toHaveBeenCalledTimes(1);
   });
 
+  it("fills degree from pitch so legacy fixtures flow through the raga path", () => {
+    const onNoteEvent = vi.fn();
+    const onComplete = vi.fn();
+    startReplay({ onNoteEvent, onComplete });
+    vi.advanceTimersByTime(600);
+    expect(onNoteEvent).toHaveBeenCalled();
+    const scale = [60, 62, 64, 67, 69, 72, 74, 76, 79, 81];
+    for (const call of onNoteEvent.mock.calls) {
+      const emitted = call[0] as { pitch: number; degree: number };
+      expect(emitted.degree).toBe(scale.indexOf(emitted.pitch));
+    }
+  });
+
   it("stop() cancels pending timers mid-replay (no late events, no onComplete)", () => {
     const onNoteEvent = vi.fn();
     const onComplete = vi.fn();

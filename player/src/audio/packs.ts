@@ -1,16 +1,18 @@
-import ambientPackJson from "../../public/packs/ambient/pack.json";
-import chiptunePackJson from "../../public/packs/chiptune/pack.json";
-import ensemblePackJson from "../../public/packs/ensemble/pack.json";
-import orchestralPackJson from "../../public/packs/orchestral/pack.json";
+import ambientPackJson from "../packs/ambient/pack.json";
+import chiptunePackJson from "../packs/chiptune/pack.json";
+import ensemblePackJson from "../packs/ensemble/pack.json";
+import orchestralPackJson from "../packs/orchestral/pack.json";
 
 // Data-driven instrument packs.
 //
-// Each pack lives in `player/public/packs/<id>/pack.json` and describes,
-// per backend event type: which voice to play, an optional sample file, and
-// the synthesized fallback that must work with zero sample files present.
-// The JSON files are the source of truth; they are bundled at build time for
-// instant synchronous use and re-fetched from the network at runtime so a
-// stale deploy is detected (see ensurePacksFromNetwork).
+// Canonical manifests live in `player/src/packs/<id>/pack.json` (imported by
+// the bundle); `scripts/sync-packs.mjs` mirrors them to
+// `player/public/packs/<id>/pack.json` for the runtime fetch path. Each pack
+// describes, per backend event type: which voice to play, an optional sample
+// file, and the synthesized fallback that must work with zero sample files
+// present. The JSON files are the source of truth; they are bundled at build
+// time for instant synchronous use and re-fetched from the network at runtime
+// so a stale deploy is detected (see ensurePacksFromNetwork).
 
 export const EVENT_TYPES = [
   "tcp_syn",

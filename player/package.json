@@ -4,7 +4,10 @@
     "version": "0.0.0",
     "type": "module",
     "scripts": {
+        "sync:packs": "node ./scripts/sync-packs.mjs",
+        "predev": "npm run sync:packs",
         "dev": "vite",
+        "prebuild": "npm run sync:packs",
         "build": "tsc -b && vite build",
         "lint": "oxlint",
         "test": "vitest run",

@@ -2,6 +2,10 @@ export interface NoteEvent {
   timestamp_ms: number;
   event_type: string;
   pitch: number;
+  // Scale-degree index (port % 10, plus the event's answer offset) that
+  // produced `pitch`. Optional so legacy payloads keep working — the player
+  // derives it from `pitch` when missing (see degreeForEvent in ragas.ts).
+  degree?: number;
   velocity: number;
   duration_ms: number;
   pan: number;

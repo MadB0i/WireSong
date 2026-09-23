@@ -1,0 +1,67 @@
+{
+  "id": "ensemble",
+  "version": 1,
+  "displayName": "Ensemble",
+  "tagline": "guitar, bass, bells & pads",
+  "events": {
+    "tcp_syn": {
+      "voice": "guitar",
+      "label": "Guitar",
+      "role": "note",
+      "sample": null,
+      "fallbackSynth": { "kind": "PluckSynth", "options": { "character": "guitar" } }
+    },
+    "tcp_synack": {
+      "voice": "guitar",
+      "label": "Answering guitar",
+      "role": "note",
+      "sample": null,
+      "fallbackSynth": { "kind": "PluckSynth", "options": { "character": "guitar" } }
+    },
+    "tcp_rst": {
+      "voice": "guitar_muted",
+      "label": "Muted guitar",
+      "role": "note",
+      "sample": null,
+      "fallbackSynth": { "kind": "PluckSynth", "options": { "character": "guitar-muted" } }
+    },
+    "dns_query": {
+      "voice": "bell",
+      "label": "Bell",
+      "role": "note",
+      "sample": null,
+      "fallbackSynth": { "kind": "MetalSynth" }
+    },
+    "http_data": {
+      "voice": "bass_octave",
+      "label": "Bass (octave down)",
+      "role": "note",
+      "sample": null,
+      "fallbackSynth": { "kind": "MonoSynth", "options": { "character": "bass" }, "transposeSemitones": -12 }
+    },
+    "udp": {
+      "voice": "guitar_staccato",
+      "label": "Staccato guitar",
+      "role": "note",
+      "sample": null,
+      "fallbackSynth": { "kind": "PluckSynth", "options": { "character": "guitar-staccato" } }
+    },
+    "icmp": {
+      "voice": "pad",
+      "label": "Soft pad",
+      "role": "note",
+      "sample": null,
+      "fallbackSynth": { "kind": "Synth", "options": { "oscillator": "sine", "envelope": "slow" } }
+    },
+    "port_scan_alert": {
+      "voice": "ensemble_alarm",
+      "label": "Guitar + bass alarm",
+      "role": "alarm",
+      "sample": null,
+      "fallbackSynth": { "kind": "PluckSynth", "options": { "character": "guitar-alarm" } }
+    }
+  },
+  "samples": [],
+  "rhythm": null,
+  "festivals": []
+}

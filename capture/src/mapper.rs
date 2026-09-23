@@ -13,6 +13,13 @@ pub struct NoteEvent {
     pub timestamp_ms: u64,
     pub event_type: String,
     pub pitch: u8,
+    /// Scale-degree index (`port % scale.len()`, plus the event's
+    /// `scale_degree_offset` when one applies) that produced `pitch`.
+    /// The browser maps `degree` through the selected raga instead of
+    /// playing `pitch` raw; `pitch` is kept so old clients keep working.
+    /// Legacy payloads without this field deserialize to 0.
+    #[serde(default)]
+    pub degree: u8,
     pub velocity: f32,
     pub duration_ms: u32,
     pub pan: f32,
@@ -62,6 +69,7 @@ impl Mapper {
             _ => base_index,
         };
         let pitch = scale[pitch_index];
+        let degree = pitch_index as u8;
 
         let velocity = if event.size_bytes == 0 {
             config.velocity_base
@@ -92,6 +100,7 @@ impl Mapper {
             timestamp_ms: now_ms,
             event_type: event_type.to_string(),
             pitch,
+            degree,
             velocity,
             duration_ms,
             pan,
@@ -111,11 +120,13 @@ impl Mapper {
         };
         let scale = &self.pack.scale.notes;
         let pitch = scale[scale.len() / 2];
+        let degree = (scale.len() / 2) as u8;
 
         NoteEvent {
             timestamp_ms: now_ms,
             event_type: "port_scan_alert".to_string(),
             pitch,
+            degree,
             velocity: velocity_base,
             duration_ms,
             pan: PAN_INBOUND,
@@ -288,5 +299,54 @@ mod tests {
         assert_eq!(note.dst_ip, None);
         assert_eq!(note.src_port, None);
         assert_eq!(note.dst_port, None);
+    }
+
+    #[test]
+    fn degree_is_port_mod_scale_len() {
+        let mapper = Mapper::new(pack(), LOCAL);
+        let note = mapper
+            .map(&event(EventType::TcpSyn, LOCAL, REMOTE, 443, 66), 1000)
+            .expect("TcpSyn should map");
+        assert_eq!(note.degree as usize, 443 % 10);
+        assert_eq!(note.pitch, pack().scale.notes[note.degree as usize]);
+    }
+
+    #[test]
+    fn synack_degree_tracks_pitch_index_including_offset() {
+        let mapper = Mapper::new(pack(), LOCAL);
+        let note = mapper
+            .map(&event(EventType::TcpSynAck, REMOTE, LOCAL, 443, 66), 1000)
+            .expect("TcpSynAck should map");
+        let scale = pack().scale.notes;
+        assert_eq!(note.degree, (443 % scale.len() as u16 + 2) as u8);
+        assert_eq!(note.pitch, scale[note.degree as usize]);
+    }
+
+    #[test]
+    fn alert_degree_is_mid_scale() {
+        let mapper = Mapper::new(pack(), LOCAL);
+        let alert = PortScanAlert {
+            src_ip: LOCAL,
+            distinct_ports: 9,
+            window_secs: 3,
+        };
+        let note = mapper.map_alert(&alert, 2000);
+        assert_eq!(note.degree, (pack().scale.notes.len() / 2) as u8);
+        assert_eq!(note.pitch, pack().scale.notes[note.degree as usize]);
+    }
+
+    #[test]
+    fn legacy_payload_without_degree_deserializes_to_zero() {
+        let legacy = r#"{
+            "timestamp_ms": 1000,
+            "event_type": "tcp_syn",
+            "pitch": 64,
+            "velocity": 0.5,
+            "duration_ms": 200,
+            "pan": 0.0,
+            "size_bytes": 66
+        }"#;
+        let note: NoteEvent = serde_json::from_str(legacy).expect("old fixture deserializes");
+        assert_eq!(note.degree, 0);
     }
 }

@@ -53,6 +53,20 @@ test("instrument pack manifests are served as JSON", async ({ request }) => {
     expect(body.events.tcp_syn.fallbackSynth.kind).toBeTruthy();
   }
 });
+test("raga picker switches raga and toggles clock and meend", async ({ page }) => {
+  await page.goto("/");
+  const picker = page.getByTestId("raga-picker");
+  await expect(picker).toBeVisible();
+  await expect(page.getByTestId("raga-active")).toContainText("Bhupali");
+  await page.getByTestId("raga-yaman").click();
+  await expect(page.getByTestId("raga-yaman")).toHaveAttribute("aria-pressed", "true");
+  await expect(page.getByTestId("raga-active")).toContainText("Yaman");
+  await page.getByTestId("raga-clock-toggle").click();
+  await expect(page.getByTestId("raga-clock-toggle")).toHaveAttribute("aria-pressed", "true");
+  await page.getByTestId("meend-toggle").click();
+  await expect(page.getByTestId("meend-toggle")).toHaveAttribute("aria-pressed", "true");
+});
+
 test("full ip view is off by default; toggle flips it", async ({ page }) => {
   await page.goto("/");
   const toggle = page.getByTestId("redact-toggle");

@@ -1,4 +1,5 @@
 import type { NoteEvent } from "./ws";
+import { degreeForEvent } from "./audio/ragas";
 import replayData from "../../examples/replay-demo.json";
 
 export interface ReplayHandlers {
@@ -6,7 +7,12 @@ export interface ReplayHandlers {
   onComplete: () => void;
 }
 
-const REPLAY_EVENTS: NoteEvent[] = replayData;
+// The bundled fixture predates scale degrees: fill `degree` from `pitch`
+// so the replay flows through the exact same raga path as live traffic.
+const REPLAY_EVENTS: NoteEvent[] = (replayData as NoteEvent[]).map((event) => ({
+  ...event,
+  degree: degreeForEvent(event as NoteEvent),
+}));
 
 export function startReplay(handlers: ReplayHandlers): { stop: () => void } {
   let stopped = false;

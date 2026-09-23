@@ -124,6 +124,7 @@ mod tests {
             timestamp_ms: 1,
             event_type: "udp".to_string(),
             pitch: 60,
+            degree: 0,
             velocity: 0.5,
             duration_ms: 100,
             pan: 0.0,
