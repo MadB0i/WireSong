@@ -138,6 +138,7 @@ test("recording exports a self-contained share page", async ({
   expect(html).toContain("WireSong");
   expect(html).toContain("<canvas");
   expect(html).toContain("port_scan_alert");
+  expect(html).toContain("Ambient");
 
   const exported = await context.newPage();
   const htmlPath = `${filePath}.html`;

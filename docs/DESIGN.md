@@ -57,12 +57,17 @@ burst is fine — but an alert must never be lost, or the ears learn to ignore i
   center otherwise. Your ears can tell who is talking to whom.
 - **Alert ≠ louder note, alert = different *pattern*.** The scan alert is the loudest
   single note, always on the inbound side, and the browser renders it as a
-  four-note rising arpeggio [+0, +3, +6, +7]. A fixed musical motif, not just a
+  four-note rising arpeggio from the selected raga's alert phrase (scale
+  degrees, so it always stays in-raga). A fixed musical motif, not just a
   big blip — memorable, and distinct from any traffic-derived pitch.
 - **The mapping lives in one file.** `capture/instruments/ambient.toml` is the single
-  source of truth (pitch/velocity/duration rules). The browser's "instrument packs"
+  source of truth (pitch/velocity/duration rules). The browser's "cultural packs"
   change only timbre (which voice plays which event type), never the mapping — so
   switching packs mid-stream never breaks the harmony.
+- **Scale degrees, not just pitches.** The backend also emits `degree` (the scale
+  index behind each pitch). The player maps degrees through the active raga with
+  octave wrap; the default Bhupali raga *is* the backend pentatonic, so default
+  playback reproduces backend pitches exactly while other ragas re-color them.
 
 ## Frontend architecture
 
@@ -73,6 +78,11 @@ burst is fine — but an alert must never be lost, or the ears learn to ignore i
 - **Module-level stores** (`analytics.ts`, `share.ts`) rather than context or a state
   library: they are append-only counters/buffers with tiny surface areas, tested
   as pure functions.
+- **Culture lives in data.** Pack manifests (`player/src/packs/<id>/pack.json`) own
+  voices, samples, drone, rhythm grids, festival calendars, and review metadata;
+  the engines (`packs.ts`, `ragas.ts`, `rhythm.ts`, `festivals.ts`, `samples.ts`,
+  `drone.ts`) are culture-agnostic and never name a festival, season, or tradition.
+  Full schema and content policy: `docs/CULTURAL_PACKS.md`.
 - **Redaction is a display concern.** IPs arrive in the browser because the network
   graph needs endpoints, but the UI redacts them for display, and the share export
   (`share.ts`) strips them from the data entirely — the exported HTML contains
@@ -90,10 +100,12 @@ burst is fine — but an alert must never be lost, or the ears learn to ignore i
 ## Verification
 
 - Rust: `cargo test` — classify (v4/v6, DLT_NULL), port-scan window/cooldown,
-  mapper pitch/pan/duration rules, WS message shapes (31 tests).
-- Player: `npm test` (Vitest, 48 tests) + `npm run e2e` (Playwright, 4 tests:
-  shell render, live-demo streaming, IP-visibility toggle, share-page export
-  round-trip).
+  mapper pitch/pan/duration/degree rules, WS message shapes (35 tests).
+- Player: `npm test` (Vitest, 115 tests: packs/loader, ragas, rhythm, festivals,
+  samples, drone, glide, share context, replay degree fill) + `npm run e2e`
+  (Playwright, 8 tests: shell render, live-demo streaming, pack manifests,
+  culture-pack fallback streaming, raga picker, festival calendar,
+  IP-visibility toggle, share-page export round-trip).
 - CI runs all three (`.github/workflows/ci.yml`), plus `npm run lint` (oxlint) and
   `npm run build` (tsc + Vite) locally.
 - `--bench` gives a throughput number that can be checked in the README (order of

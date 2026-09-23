@@ -14,7 +14,8 @@ WireSong turns live network traffic into a real-time generative soundscape. Pack
 - **Live analytics** — event mix, top talkers, traffic sparkline, and scan alerts in the UI
 - **Privacy-first by default** — IPs are masked in the UI and stripped from every export; an opt-in "Full IP view" reveals them on screen only (the WebSocket itself carries unredacted IPs — see limitations)
 - **Shareable recordings** — export a standalone HTML page with embedded audio and synchronized piano-roll playback, zero external dependencies
-- **Shipped for demo** — frontend live on GitHub Pages; backend ships with a ready-to-deploy Render blueprint (free tier, **not yet deployed**); CI runs Rust + TypeScript unit tests and Playwright E2E
+- **Cultural packs** — folk/festival timbre packs (Assamese Bihu, Bodo folk skeletons and more) with raga scales, season calendars, and a drum layer; folk/festival/secular material only
+- **Shipped for demo** — frontend live on GitHub Pages; backend ships with a ready-to-deploy Render blueprint (free tier, **not yet deployed** — see `DEPLOY.md`); CI runs Rust + TypeScript unit tests and Playwright E2E
 
 ## Demo
 
@@ -143,7 +144,7 @@ Throughput is decode-bound and scales with packet complexity; these are best-of-
 
 ## Hosted backend (Render)
 
-> **Status: not deployed.** This is a ready-to-run blueprint; no Render instance exists yet. Deploying is ~2 minutes of clicking:
+> **Status: not deployed.** This is a ready-to-run blueprint; no Render instance exists yet. Exact click-through: [`DEPLOY.md`](DEPLOY.md) (~2 minutes).
 
 `render.yaml` deploys the backend as a free Render web service running `--synthetic --rate 20`:
 
@@ -159,13 +160,39 @@ After stopping a recording, the player offers **⬆ Share Page**: it exports a s
 
 ## Instrument packs
 
-Three timbres, switchable at any time — even mid-note (a sustained pad keeps ringing when you switch packs mid-stream; verified by tests):
+Six timbres under the umbrella name **Cultural packs**, switchable at any time — even mid-note (a sustained pad keeps ringing when you switch packs mid-stream; verified by tests):
 
 - **Ambient** — plucks, bells, soft pads and a sine drone; the default.
 - **Chiptune** — square and triangle waves, stabby and retro.
 - **Orchestral** — strings, brass stabs, celesta, pizzicato and flute.
+- **Ensemble** — guitar, bass, bells and pads.
+- **Axom (Bihu)** — অসম (বিহু) — Assamese Bihu folk (see mapping below). Status: placeholder, awaiting community review.
+- **Bodo folk** — Bwisagu dance-season folk skeleton (kham, siphung, serja, jotha). Status: placeholder, instrument list unverified — review by Bodo musicians welcome.
 
-Pack selection changes only timbre; the pentatonic mapping above stays the same, so packs can be swapped instantly without the mix ever sounding wrong.
+Pack selection changes only timbre; the pentatonic mapping above stays the same, so packs can be swapped instantly without the mix ever sounding wrong. Culture packs add three optional layers, all driven by their own `pack.json` (never shared code): a **raga scale** reinterpretation of scale degrees (Bhupali default = today's pitches exactly; Yaman, Bhairav, Malkauns, Todi; optional Raga Clock by time of day; optional meend glide), a **festival calendar** (tempo range, density, drone weight, default raga, with auto-by-season), and a **step-grid drum layer** (tempo follows traffic, 80–160 BPM). See `docs/CULTURAL_PACKS.md` for the manifest schema and authoring guide.
+
+### The Axom (Bihu) mapping
+
+| Event | Voice | Character |
+|---|---|---|
+| `tcp_syn` | dotora (plucked 2-string lute) | plucked call |
+| `tcp_synack` | dotora, answering an octave higher | plucked answer |
+| `tcp_rst` | toka (bamboo clapper) | short and quiet |
+| `dns_query` | taal (small cymbals) | bright tick |
+| `http_data` | baanhi (bamboo flute) | sustain grows with payload size |
+| `udp` | gogona (bamboo jaw-harp reed) | twangy |
+| `icmp` | xutuli (small clay whistle) | soft |
+| `port_scan_alert` | pepa (reed pipe) phrase + dhol roll | loudest in the mix |
+
+Plus a sustained Sa-Pa drone bed under baseline traffic and a 16-step dhol grid (currently a placeholder marked `TODO: verify with a Bihu dhol player`). Recorded samples are lazy-loaded per voice with synthesized fallbacks, so the pack works with zero recordings; only self-recorded or CC0 samples are accepted (`player/src/packs/axom/samples/README.md`).
+
+### Cultural notes
+
+This pack is inspired by Assamese Bihu folk music — spring/harvest festival music and dance-season folk, with classical-scale ragas for pitch color. It contains no ritual or devotional material by design, and ships no recordings yet. If you are an Assamese or Bodo folk musician: the mappings, drum patterns, tunings, calendars, and local-script labels are all open for correction — feedback is welcome, and the "placeholder" badges clear only after community review.
+
+### How to add a new culture pack
+
+Packs are data (`player/src/packs/<id>/pack.json` + `samples/`), validated by a loader with clear errors. The engine is culture-agnostic, so a new pack rarely touches shared code: map the 8 events to existing or new fallback voices, add an optional rhythm grid, festival calendar, and drone, write the sample docs, and open a PR. Ideas: Baul folk, Manipuri pung folk, Carnatic scale pack. Full schema and checklist: `docs/CULTURAL_PACKS.md`.
 
 ## Port-scan detection
 
@@ -193,14 +220,19 @@ WireSong/
 │   ├── instruments/  ambient.toml — the sonification mapping (single source of truth)
 │   └── samples/      small .pcap fixtures from the Wireshark test suite (replay/bench)
 ├── player/           React 19 + TypeScript + Vite + Tone.js frontend
-│   ├── src/audio/    synth.ts (voices, packs, master bus) · recorder.ts (WebM export)
-│   ├── src/components/  InstrumentPicker · PianoRoll · NetworkGraph · PacketFeed
-│   │                    · SpectrumAnalyzer · RecordControls · AnalyticsPanel
+│   ├── src/audio/    synth.ts (voices, packs, master bus) · packs.ts (manifest loader/registry)
+│   │                 · ragas.ts (raga engine + clock) · rhythm.ts (drum layer) · festivals.ts
+│   │                 · samples.ts (lazy recordings + fallback) · drone.ts (Sa-Pa bed) · recorder.ts
+│   ├── src/packs/    canonical pack.json manifests + sample docs (mirrored to public/packs/)
+│   ├── scripts/      sync-packs.mjs (mirrors src/packs/ → public/packs/ on predev/prebuild)
+│   ├── src/components/  InstrumentPicker · FestivalPicker · RagaPicker · PianoRoll · NetworkGraph
+│   │                    · PacketFeed · SpectrumAnalyzer · RecordControls · AnalyticsPanel
 │   ├── e2e/          Playwright end-to-end tests
 │   └── src/          App.tsx · ws.ts (WebSocket client) · replay.ts (demo replay)
 │                     · analytics.ts (live stats store) · share.ts (standalone HTML export)
 ├── examples/         replay-demo.json (bundled 60s demo fixture) + its generator
-├── docs/             demo.gif (real screen capture) · DESIGN.md
+├── docs/             demo.gif (real screen capture) · DESIGN.md · CULTURAL_PACKS.md
+├── DEPLOY.md         exact Render + Pages deploy steps
 ├── render.yaml       Render blueprint: deploys the backend in synthetic mode
 ├── .github/          CI workflow (cargo test + npm test + build + Playwright E2E)
 │                     + Pages deploy workflow

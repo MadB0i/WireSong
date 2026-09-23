@@ -1,9 +1,14 @@
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
 import {
   beginShareCapture,
+  buildSharePage,
   captureShareEvent,
+  currentShareContext,
   endShareCapture,
 } from "./share";
+import { setRaga } from "./audio/ragas";
+import { setAutoSeason, setManualFestivalId } from "./audio/festivals";
+import { setVoicePack } from "./audio/synth";
 import type { NoteEvent } from "./ws";
 
 const EVENT: NoteEvent = {
@@ -17,6 +22,13 @@ const EVENT: NoteEvent = {
 };
 
 describe("share capture", () => {
+  beforeEach(() => {
+    setVoicePack("ambient");
+    setRaga("bhupali");
+    setAutoSeason(false);
+    setManualFestivalId(null);
+  });
+
   it("collects musical metadata while active", () => {
     beginShareCapture();
     captureShareEvent(EVENT);
@@ -44,5 +56,50 @@ describe("share capture", () => {
     captureShareEvent(EVENT);
     endShareCapture();
     expect(endShareCapture()).toBeNull();
+  });
+
+  it("stores the scale degree with each event", () => {
+    beginShareCapture();
+    captureShareEvent({ ...EVENT, pitch: 76, degree: undefined });
+    const recording = endShareCapture();
+    expect(recording!.events[0].d).toBe(7);
+  });
+
+  it("captures the performance context with pack, raga, and festival", () => {
+    const context = currentShareContext();
+    expect(context).toMatchObject({
+      packId: "ambient",
+      packLabel: "Ambient",
+      ragaId: "bhupali",
+      ragaName: "Bhupali",
+      festivalId: null,
+      festivalLabel: null,
+    });
+    beginShareCapture();
+    captureShareEvent(EVENT);
+    const recording = endShareCapture();
+    expect(recording!.context).toEqual(context);
+  });
+});
+
+describe("buildSharePage", () => {
+  it("embeds the context labels and musical metadata, never IPs", () => {
+    beginShareCapture();
+    captureShareEvent({
+      ...EVENT,
+      src_ip: "10.0.0.5",
+      dst_ip: "93.184.216.34",
+      src_port: 52341,
+      dst_port: 443,
+    });
+    const recording = endShareCapture();
+    const html = buildSharePage(recording!, null);
+    expect(html).toContain("Ambient");
+    expect(html).toContain("Bhupali");
+    expect(html).toContain("<canvas");
+    expect(html).toContain("port_scan_alert");
+    expect(html).not.toContain("10.0.0.5");
+    expect(html).not.toContain("93.184.216.34");
+    expect(html).not.toContain("52341");
   });
 });

@@ -1,18 +1,36 @@
 import type { NoteEvent } from "./ws";
+import { degreeForEvent, getActiveRaga } from "./audio/ragas";
+import { getActiveFestival } from "./audio/festivals";
+import { getPackDef } from "./audio/packs";
+import { getVoicePack } from "./audio/synth";
 
 export interface ShareNoteEvent {
   t: number;
   type: string;
   pitch: number;
+  // Scale degree behind the pitch (filled from pitch for legacy events).
+  d?: number;
   velocity: number;
   duration_ms: number;
   pan: number;
+}
+
+// Performance context embedded in every export: which pack, raga, and
+// festival mode shaped the recording. Musical metadata only — never IPs.
+export interface ShareContext {
+  packId: string;
+  packLabel: string;
+  ragaId: string;
+  ragaName: string;
+  festivalId: string | null;
+  festivalLabel: string | null;
 }
 
 export interface ShareRecording {
   events: ShareNoteEvent[];
   started_at: number;
   ended_at: number;
+  context: ShareContext;
 }
 
 const MAX_EVENTS = 5000;
@@ -35,10 +53,26 @@ export function captureShareEvent(event: NoteEvent): void {
     t: Math.max(0, Date.now() - startedAtMs),
     type: event.event_type,
     pitch: event.pitch,
+    d: degreeForEvent(event),
     velocity: event.velocity,
     duration_ms: event.duration_ms,
     pan: event.pan,
   });
+}
+
+export function currentShareContext(): ShareContext {
+  const packId = getVoicePack();
+  const def = getPackDef(packId);
+  const raga = getActiveRaga();
+  const festival = getActiveFestival(def);
+  return {
+    packId,
+    packLabel: def?.displayName ?? packId,
+    ragaId: raga.id,
+    ragaName: raga.name,
+    festivalId: festival?.id ?? null,
+    festivalLabel: festival?.label ?? null,
+  };
 }
 
 export function endShareCapture(): ShareRecording | null {
@@ -50,16 +84,21 @@ export function endShareCapture(): ShareRecording | null {
     events: [...events],
     started_at: startedAtMs,
     ended_at: Date.now(),
+    context: currentShareContext(),
   };
   events.length = 0;
   return recording;
 }
 
-function buildSharePage(recording: ShareRecording, audioDataUrl: string | null): string {
+// Exported for unit tests (pure HTML builder; the download needs a DOM).
+export function buildSharePage(recording: ShareRecording, audioDataUrl: string | null): string {
   const durationMs = Math.max(1, recording.ended_at - recording.started_at);
   const eventCount = recording.events.length;
   const startedIso = new Date(recording.started_at).toISOString();
   const payload = JSON.stringify(recording.events);
+  const contextLine = recording.context.festivalLabel
+    ? `${recording.context.packLabel} · ${recording.context.ragaName} · ${recording.context.festivalLabel}`
+    : `${recording.context.packLabel} · ${recording.context.ragaName}`;
 
   const audioHtml =
     audioDataUrl === null
@@ -129,7 +168,7 @@ function buildSharePage(recording: ShareRecording, audioDataUrl: string | null):
 <body>
   <div class="card">
     <h1>Wire<em>Song</em> — Network Soundscape</h1>
-    <p class="sub">your network traffic, as a generative soundscape · captured ${startedIso.slice(0, 19).replace("T", " ")} UTC</p>
+    <p class="sub">your network traffic, as a generative soundscape · captured ${startedIso.slice(0, 19).replace("T", " ")} UTC · ${contextLine}</p>
     <div class="stats">
       <div><b>${eventCount}</b>events sonified</div>
       <div><b>${(durationMs / 1000).toFixed(1)}s</b>recording</div>
@@ -152,6 +191,9 @@ function buildSharePage(recording: ShareRecording, audioDataUrl: string | null):
 <script>
 (function () {
   const EVENTS = ${payload};
+  // Performance context (pack/raga/festival ids + labels), musical metadata only.
+  const META = ${JSON.stringify(recording.context)};
+  void META;
   const COLORS = {
     tcp_syn: "#60a5fa", tcp_synack: "#818cf8", tcp_rst: "#64748b",
     dns_query: "#a78bfa", http_data: "#22d3ee", udp: "#2dd4bf",
