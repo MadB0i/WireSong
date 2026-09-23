@@ -1,0 +1,67 @@
+{
+  "id": "chiptune",
+  "version": 1,
+  "displayName": "Chiptune",
+  "tagline": "retro squares & blips",
+  "events": {
+    "tcp_syn": {
+      "voice": "chip_square",
+      "label": "Square lead",
+      "role": "note",
+      "sample": null,
+      "fallbackSynth": { "kind": "Synth", "options": { "oscillator": "square", "envelope": "chip" } }
+    },
+    "tcp_synack": {
+      "voice": "chip_pulse",
+      "label": "Pulse answer",
+      "role": "note",
+      "sample": null,
+      "fallbackSynth": { "kind": "Synth", "options": { "oscillator": "pulse", "envelope": "chip" } }
+    },
+    "tcp_rst": {
+      "voice": "chip_stab",
+      "label": "Stab",
+      "role": "note",
+      "sample": null,
+      "fallbackSynth": { "kind": "Synth", "options": { "oscillator": "square", "envelope": "stab" } }
+    },
+    "dns_query": {
+      "voice": "chip_blip",
+      "label": "Blip",
+      "role": "note",
+      "sample": null,
+      "fallbackSynth": { "kind": "Synth", "options": { "oscillator": "triangle", "envelope": "blip" } }
+    },
+    "http_data": {
+      "voice": "chip_hold",
+      "label": "Held square",
+      "role": "note",
+      "sample": null,
+      "fallbackSynth": { "kind": "Synth", "options": { "oscillator": "square", "envelope": "hold" } }
+    },
+    "udp": {
+      "voice": "chip_triangle",
+      "label": "Triangle tick",
+      "role": "note",
+      "sample": null,
+      "fallbackSynth": { "kind": "Synth", "options": { "oscillator": "triangle", "envelope": "chip" } }
+    },
+    "icmp": {
+      "voice": "chip_triangle",
+      "label": "Triangle tick",
+      "role": "note",
+      "sample": null,
+      "fallbackSynth": { "kind": "Synth", "options": { "oscillator": "triangle", "envelope": "chip" } }
+    },
+    "port_scan_alert": {
+      "voice": "chip_alarm",
+      "label": "Chip alarm",
+      "role": "alarm",
+      "sample": null,
+      "fallbackSynth": { "kind": "Synth", "options": { "oscillator": "square", "envelope": "alarm" } }
+    }
+  },
+  "samples": [],
+  "rhythm": null,
+  "festivals": []
+}

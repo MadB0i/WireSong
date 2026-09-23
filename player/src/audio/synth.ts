@@ -1,11 +1,20 @@
 import * as Tone from "tone";
 import type { NoteEvent } from "../ws";
+import {
+  BUNDLED_PACKS,
+  type PackDefinition,
+} from "./packs";
 
+// Instrument packs are data-driven: player/public/packs/<id>/pack.json is
+// the source of truth for the event -> voice mapping (plus sample manifest
+// and fallback synth per event). This module owns the Tone.js voice builders
+// keyed by voice id; the JSON selects which builder plays each event type.
 // The ambient pack intentionally mirrors capture/instruments/ambient.toml's
 // sonification (this is the only backend config; packs are a frontend
-// concept). The chiptune and orchestral packs are distinct timbre tables
-// that do NOT need to match ambient.toml, by design.
-export type PackName = "ambient" | "chiptune" | "orchestral" | "ensemble";
+// concept). Packs change timbre only, never the mapping.
+export type PackName = string;
+
+export const BUILTIN_PACK_IDS = ["ambient", "chiptune", "orchestral", "ensemble"];
 
 interface VoiceSpec {
   build: (freq: number, event: NoteEvent) => Tone.ToneAudioNode;
@@ -345,48 +354,66 @@ function buildEnsembleAlarm(_freq: number, event: NoteEvent): Tone.Gain {
   return out;
 }
 
-export const PACKS: Record<PackName, Record<string, VoiceSpec>> = {
-  ambient: {
-    tcp_syn: { build: buildPluck },
-    tcp_synack: { build: buildPluck },
-    tcp_rst: { build: buildDamped },
-    dns_query: { build: buildBell },
-    http_data: { build: buildPad },
-    udp: { build: buildPizzicato },
-    icmp: { build: buildSine },
-    port_scan_alert: { build: buildAlarmArpeggio, isAlarmVoice: true },
-  },
-  chiptune: {
-    tcp_syn: { build: buildChipSquare },
-    tcp_synack: { build: buildChipPulse },
-    tcp_rst: { build: buildChipStab },
-    dns_query: { build: buildChipBlip },
-    http_data: { build: buildChipHold },
-    udp: { build: buildChipTriangle },
-    icmp: { build: buildChipTriangle },
-    port_scan_alert: { build: buildChipAlarm, isAlarmVoice: true },
-  },
-  orchestral: {
-    tcp_syn: { build: buildOrchStrings },
-    tcp_synack: { build: buildOrchStringsBright },
-    tcp_rst: { build: buildOrchBrassHit },
-    dns_query: { build: buildOrchCelesta },
-    http_data: { build: buildOrchStringsSustain },
-    udp: { build: buildOrchPizz },
-    icmp: { build: buildOrchFlute },
-    port_scan_alert: { build: buildOrchBrassStab, isAlarmVoice: true },
-  },
-  ensemble: {
-    tcp_syn: { build: buildGuitar },
-    tcp_synack: { build: buildGuitar },
-    tcp_rst: { build: buildGuitarMuted },
-    dns_query: { build: buildBell },
-    http_data: { build: buildBassOctave },
-    udp: { build: buildGuitarStaccato },
-    icmp: { build: buildPad },
-    port_scan_alert: { build: buildEnsembleAlarm, isAlarmVoice: true },
-  },
+export const VOICE_BUILDERS: Record<string, VoiceSpec> = {
+  pluck: { build: buildPluck },
+  damped: { build: buildDamped },
+  bell: { build: buildBell },
+  pad: { build: buildPad },
+  pizzicato: { build: buildPizzicato },
+  sine: { build: buildSine },
+  alarm_arpeggio: { build: buildAlarmArpeggio, isAlarmVoice: true },
+  chip_square: { build: buildChipSquare },
+  chip_pulse: { build: buildChipPulse },
+  chip_stab: { build: buildChipStab },
+  chip_blip: { build: buildChipBlip },
+  chip_hold: { build: buildChipHold },
+  chip_triangle: { build: buildChipTriangle },
+  chip_alarm: { build: buildChipAlarm, isAlarmVoice: true },
+  orch_strings: { build: buildOrchStrings },
+  orch_strings_bright: { build: buildOrchStringsBright },
+  orch_brass_hit: { build: buildOrchBrassHit },
+  orch_celesta: { build: buildOrchCelesta },
+  orch_strings_sustain: { build: buildOrchStringsSustain },
+  orch_pizz: { build: buildOrchPizz },
+  orch_flute: { build: buildOrchFlute },
+  orch_brass_stab: { build: buildOrchBrassStab, isAlarmVoice: true },
+  guitar: { build: buildGuitar },
+  guitar_muted: { build: buildGuitarMuted },
+  guitar_staccato: { build: buildGuitarStaccato },
+  bass_octave: { build: buildBassOctave },
+  ensemble_alarm: { build: buildEnsembleAlarm, isAlarmVoice: true },
 };
+
+export const KNOWN_VOICE_IDS: string[] = Object.keys(VOICE_BUILDERS);
+
+function voicesForPack(def: PackDefinition): Record<string, VoiceSpec> {
+  const table: Record<string, VoiceSpec> = {};
+  for (const [eventType, eventDef] of Object.entries(def.events)) {
+    const voice = VOICE_BUILDERS[eventDef.voice];
+    if (!voice) {
+      throw new Error(
+        `pack "${def.id}" maps "${eventType}" to unknown voice "${eventDef.voice}" ` +
+          `(known voices: ${KNOWN_VOICE_IDS.join(", ")})`,
+      );
+    }
+    table[eventType] = { ...voice, isAlarmVoice: eventDef.role === "alarm" };
+  }
+  return table;
+}
+
+const packTables: Record<string, Record<string, VoiceSpec>> = {};
+for (const def of Object.values(BUNDLED_PACKS)) {
+  packTables[def.id] = voicesForPack(def);
+}
+
+export const PACKS: Record<string, Record<string, VoiceSpec>> = packTables;
+
+// Register a validated pack definition at runtime (e.g. re-fetched from the
+// network, or a user-added pack). Throws with a clear message when the
+// definition references an unknown voice id; the previous table is kept.
+export function registerPackDefinition(def: PackDefinition): void {
+  packTables[def.id] = voicesForPack(def);
+}
 
 let currentPack: PackName = "ambient";
 
@@ -400,6 +427,10 @@ export function getMasterBus(): Tone.Gain {
 }
 
 export function setVoicePack(pack: PackName): void {
+  if (!packTables[pack]) {
+    console.warn(`WireSong: unknown pack "${pack}", keeping "${currentPack}"`);
+    return;
+  }
   currentPack = pack;
 }
 
@@ -412,7 +443,8 @@ export function playNoteEvent(event: NoteEvent): void {
     console.debug("WireSong audio not started; dropping note", event.event_type);
     return;
   }
-  const voice = PACKS[currentPack][event.event_type] ?? PACKS[currentPack].icmp;
+  const table = PACKS[currentPack] ?? PACKS.ambient;
+  const voice = table[event.event_type] ?? table.icmp;
   const freq = midiToFrequency(event.pitch);
   const node = voice.build(freq, event);
 

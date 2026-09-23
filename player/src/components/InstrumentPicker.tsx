@@ -1,5 +1,6 @@
-import { useState, type ReactElement } from "react";
-import { getVoicePack, setVoicePack, type PackName } from "../audio/synth";
+import { useEffect, useState, type ReactElement } from "react";
+import { getVoicePack, registerPackDefinition, setVoicePack, type PackName } from "../audio/synth";
+import { BUNDLED_PACKS, PACK_IDS, ensurePacksFromNetwork } from "../audio/packs";
 
 interface PackMeta {
   name: PackName;
@@ -10,78 +11,80 @@ interface PackMeta {
 
 const WAVES = [0, 1, 2];
 
-const PACK_META: PackMeta[] = [
-  {
-    name: "ambient",
-    label: "Ambient",
-    tagline: "soft pads & plucks",
-    icon: (
-      <svg
-        viewBox="0 0 24 24"
-        className="h-5 w-5"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2.2"
-        strokeLinecap="round"
-      >
-        <path d="M2 12q3-7 5 0t5 0 5 0 5 0" />
-      </svg>
-    ),
-  },
-  {
-    name: "chiptune",
-    label: "Chiptune",
-    tagline: "retro squares & blips",
-    icon: (
-      <svg
-        viewBox="0 0 24 24"
-        className="h-5 w-5"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2.2"
-        strokeLinejoin="miter"
-      >
-        <path d="M2 7h5v10h5V7h5v10h5" />
-      </svg>
-    ),
-  },
-  {
-    name: "orchestral",
-    label: "Orchestral",
-    tagline: "strings, brass & celesta",
-    icon: (
-      <svg
-        viewBox="0 0 24 24"
-        className="h-5 w-5"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.4"
-      >
-        <path d="M9.5 17.5a2 2 0 1 1-1.9-2.4l.9-8.1a1 1 0 0 1 1-.9h.3l8-2a1 1 0 0 1 1.2.8l.4 3.1a1 1 0 0 1-.9 1.2l-8 .6v8.2z" />
-      </svg>
-    ),
-  },
-  {
-    name: "ensemble",
-    label: "Ensemble",
-    tagline: "guitar, bass, bells & pads",
-    icon: (
-      <svg
-        viewBox="0 0 24 24"
-        className="h-5 w-5"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.8"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      >
-        <path d="M5 4l7 3v12" />
-        <path d="M12 7l7-3v13" />
-        <path d="M5 19h14" />
-      </svg>
-    ),
-  },
-];
+const FALLBACK_ICON = (
+  <svg
+    viewBox="0 0 24 24"
+    className="h-5 w-5"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2.2"
+    strokeLinecap="round"
+  >
+    <path d="M2 12q3-7 5 0t5 0 5 0 5 0" />
+  </svg>
+);
+
+const PACK_ICONS: Record<string, ReactElement> = {
+  ambient: (
+    <svg
+      viewBox="0 0 24 24"
+      className="h-5 w-5"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.2"
+      strokeLinecap="round"
+    >
+      <path d="M2 12q3-7 5 0t5 0 5 0 5 0" />
+    </svg>
+  ),
+  chiptune: (
+    <svg
+      viewBox="0 0 24 24"
+      className="h-5 w-5"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.2"
+      strokeLinejoin="miter"
+    >
+      <path d="M2 7h5v10h5V7h5v10h5" />
+    </svg>
+  ),
+  orchestral: (
+    <svg
+      viewBox="0 0 24 24"
+      className="h-5 w-5"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.4"
+    >
+      <path d="M9.5 17.5a2 2 0 1 1-1.9-2.4l.9-8.1a1 1 0 0 1 1-.9h.3l8-2a1 1 0 0 1 1.2.8l.4 3.1a1 1 0 0 1-.9 1.2l-8 .6v8.2z" />
+    </svg>
+  ),
+  ensemble: (
+    <svg
+      viewBox="0 0 24 24"
+      className="h-5 w-5"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M5 4l7 3v12" />
+      <path d="M12 7l7-3v13" />
+      <path d="M5 19h14" />
+    </svg>
+  ),
+};
+
+// Display metadata comes from the pack.json files (single source of truth);
+// only the icons stay in code.
+const PACK_META: PackMeta[] = PACK_IDS.map((id) => ({
+  name: id,
+  label: BUNDLED_PACKS[id].displayName,
+  tagline: BUNDLED_PACKS[id].tagline,
+  icon: PACK_ICONS[id] ?? FALLBACK_ICON,
+}));
 
 interface InstrumentPickerProps {
   onPackChange?: (pack: PackName) => void;
@@ -89,6 +92,31 @@ interface InstrumentPickerProps {
 
 export function InstrumentPicker({ onPackChange }: InstrumentPickerProps): ReactElement {
   const [activePack, setActivePack] = useState<PackName>(getVoicePack);
+
+  // Re-fetch the served manifests once: identical content is a no-op (the
+  // bundled copy already matches), drift is registered when valid and only
+  // ever logged when it cannot be applied. Playback never blocks on this.
+  useEffect(() => {
+    let cancelled = false;
+    void ensurePacksFromNetwork().then(({ loaded, warnings }) => {
+      if (cancelled) {
+        return;
+      }
+      for (const def of loaded) {
+        try {
+          registerPackDefinition(def);
+        } catch (err) {
+          warnings.push(err instanceof Error ? err.message : String(err));
+        }
+      }
+      for (const warning of warnings) {
+        console.warn(`WireSong packs: ${warning}`);
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const selectPack = (pack: PackName) => {
     setVoicePack(pack);

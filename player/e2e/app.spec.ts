@@ -40,6 +40,19 @@ test("live demo streams events into every visualizer", async ({ page }) => {
   await expect(page.getByTestId("replay-indicator")).toHaveCount(0);
 });
 
+test("instrument pack manifests are served as JSON", async ({ request }) => {
+  for (const id of ["ambient", "chiptune", "orchestral", "ensemble"]) {
+    const res = await request.get(`/packs/${id}/pack.json`);
+    expect(res.ok(), `/packs/${id}/pack.json serves`).toBeTruthy();
+    const body = await res.json();
+    expect(body.id).toBe(id);
+    expect(Object.keys(body.events)).toHaveLength(8);
+    expect(body.displayName).toBeTruthy();
+    expect(body.events.port_scan_alert.role).toBe("alarm");
+    expect(body.events.tcp_syn.voice).toBeTruthy();
+    expect(body.events.tcp_syn.fallbackSynth.kind).toBeTruthy();
+  }
+});
 test("full ip view is off by default; toggle flips it", async ({ page }) => {
   await page.goto("/");
   const toggle = page.getByTestId("redact-toggle");
