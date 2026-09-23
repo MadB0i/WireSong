@@ -1,0 +1,108 @@
+{
+  "id": "punjab",
+  "version": 1,
+  "displayName": "Punjab (Bhangra)",
+  "displayNameLocal": "ਪੰਜਾਬ (ਭੰਗੜਾ)",
+  "tagline": "Bhangra folk — dhol, tumbi, algoza",
+  "culture": {
+    "region": "Punjab, India",
+    "tradition": "Bhangra folk and harvest dance music",
+    "credits": "Dance-floor folk pack. Mapping and patterns unverified; review by Punjabi folk musicians welcome.",
+    "status": "placeholder",
+    "reviewedBy": []
+  },
+  "events": {
+    "tcp_syn": {
+      "voice": "tumbi",
+      "label": "Tumbi (single-string pluck)",
+      "role": "note",
+      "sample": "samples/tumbi-C6.mp3",
+      "fallbackSynth": { "kind": "PluckSynth", "options": { "character": "tumbi-twang" } }
+    },
+    "tcp_synack": {
+      "voice": "tumbi_high",
+      "label": "Tumbi answer (octave up)",
+      "role": "note",
+      "sample": "samples/tumbi-C6.mp3",
+      "fallbackSynth": { "kind": "PluckSynth", "options": { "character": "tumbi-twang" }, "transposeSemitones": 12 }
+    },
+    "tcp_rst": {
+      "voice": "chimta",
+      "label": "Chimta (iron tongs jingle)",
+      "role": "note",
+      "sample": "samples/chimta.mp3",
+      "fallbackSynth": { "kind": "MetalSynth", "options": { "character": "chimta-tick" } }
+    },
+    "dns_query": {
+      "voice": "algoza",
+      "label": "Algoza (double flute)",
+      "role": "note",
+      "sample": "samples/algoza-C5.mp3",
+      "fallbackSynth": { "kind": "Synth", "options": { "oscillator": "sine", "character": "algoza" } }
+    },
+    "http_data": {
+      "voice": "harmonium",
+      "label": "Harmonium (reed organ)",
+      "role": "note",
+      "sample": "samples/harmonium-C4.mp3",
+      "fallbackSynth": { "kind": "FMSynth", "options": { "character": "harmonium-reed" } }
+    },
+    "udp": {
+      "voice": "dhol",
+      "label": "Dhol (barrel drum)",
+      "role": "note",
+      "sample": "samples/dhol-low.mp3",
+      "fallbackSynth": { "kind": "MembraneSynth", "options": { "character": "dhol-bass" } }
+    },
+    "icmp": {
+      "voice": "algoza",
+      "label": "Algoza (double flute)",
+      "role": "note",
+      "sample": "samples/algoza-C5.mp3",
+      "fallbackSynth": { "kind": "Synth", "options": { "oscillator": "sine", "character": "algoza" } }
+    },
+    "port_scan_alert": {
+      "voice": "dhol_alarm",
+      "label": "Tumbi phrase + dhol roll",
+      "role": "alarm",
+      "sample": null,
+      "fallbackSynth": { "kind": "PluckSynth", "options": { "character": "tumbi-alarm" } }
+    }
+  },
+  "samples": [
+    { "note": 84, "file": "samples/tumbi-C6.mp3" },
+    { "note": 72, "file": "samples/chimta.mp3" },
+    { "note": 72, "file": "samples/algoza-C5.mp3" },
+    { "note": 60, "file": "samples/harmonium-C4.mp3" },
+    { "note": 36, "file": "samples/dhol-low.mp3" },
+    { "note": 43, "file": "samples/dhol-high.mp3" }
+  ],
+  "drone": null,
+  "rhythm": {
+    "steps": 16,
+    "low": [1, 0, 0, 1, 0, 0, 1, 0, 1, 0, 0, 1, 0, 0, 1, 0],
+    "high": [0, 0, 1, 0, 1, 0, 0, 1, 0, 0, 1, 0, 1, 0, 0, 1],
+    "comment": "TODO: placeholder bhangra-chaal groove — verify with a dhol player before calling this authentic."
+  },
+  "festivals": [
+    {
+      "id": "baisakhi",
+      "label": "Baisakhi (spring harvest)",
+      "labelLocal": "ਵਿਸਾਖੀ",
+      "months": [3, 4],
+      "tempoRange": [135, 160],
+      "density": 1.0,
+      "droneLevel": 0.2,
+      "defaultRaga": "bhupali"
+    },
+    {
+      "id": "lohri",
+      "label": "Lohri (winter folk)",
+      "months": [0],
+      "tempoRange": [100, 120],
+      "density": 0.7,
+      "droneLevel": 0.4,
+      "defaultRaga": "yaman"
+    }
+  ]
+}

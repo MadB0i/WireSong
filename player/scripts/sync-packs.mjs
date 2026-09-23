@@ -4,7 +4,7 @@
 // directory wholesale and verifies the manifest id matches its directory.
 // Runs automatically via the predev/prebuild hooks; public/packs/ is
 // committed so Pages and offline checkouts serve it even without running it.
-import { cpSync, readdirSync, readFileSync, rmSync } from "node:fs";
+import { cpSync, mkdirSync, readdirSync, readFileSync, rmSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -12,7 +12,17 @@ const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const src = join(root, "src", "packs");
 const dest = join(root, "public", "packs");
 
-for (const id of readdirSync(src)) {
+const srcIds = new Set(readdirSync(src));
+mkdirSync(dest, { recursive: true });
+// Drop mirrors of packs deleted from src (e.g. retired skeletons).
+for (const id of readdirSync(dest)) {
+  if (!srcIds.has(id)) {
+    rmSync(join(dest, id), { recursive: true, force: true });
+    console.log(`sync-packs: removed stale public/packs/${id}/`);
+  }
+} 
+
+for (const id of srcIds) {
   const from = join(src, id);
   const manifest = join(from, "pack.json");
   const def = JSON.parse(readFileSync(manifest, "utf-8"));

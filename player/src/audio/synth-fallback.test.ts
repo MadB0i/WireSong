@@ -114,11 +114,12 @@ const FALLBACK_TYPE: Record<string, string> = {
   baanhi: "synth",
   gogona: "fm",
   xutuli: "fm",
-  kham: "membrane",
-  kham_high: "membrane",
-  jotha: "metal",
-  siphung: "synth",
-  serja: "fm",
+  tumbi: "pluck",
+  tumbi_high: "pluck",
+  chimta: "metal",
+  algoza: "synth",
+  harmonium: "fm",
+  dhol: "membrane",
 };
 
 function packEventForVoice(voice: string): { packId: string; eventType: string } {

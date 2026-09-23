@@ -58,11 +58,10 @@ Six timbres, switchable mid-stream — four stock synths plus folk packs with ra
 |---|---|
 | Ambient · Chiptune · Orchestral · Ensemble | stock synth timbres (Ambient is default) |
 | **Axom (Bihu)** অসম (বিহু) | dotora, toka, taal, baanhi, gogona, xutuli, pepa + dhol roll, Sa-Pa drone |
-| **Bodo folk** | kham, siphung, serja, jotha + Bwisagu calendar (skeleton) |
-
+| **Punjab (Bhangra)** ਪੰਜਾਬ (ਭੰਗੜਾ) | dhol, tumbi, algoza, chimta, harmonium + Baisakhi calendar |
 ![Festival calendar with Assamese-script labels](docs/screenshots/festivals.png)
 
-Folk packs are community-reviewed placeholders (badged in the UI) carrying folk/festival/secular material only — no ritual or devotional content, no shipped recordings yet (self-recorded or CC0 only). Add yours: copy `player/src/packs/bodo/`, map 8 events, open a PR. Full schema: [`docs/CULTURAL_PACKS.md`](docs/CULTURAL_PACKS.md). Assamese/Bodo musician feedback welcome.
+Folk packs are community-reviewed placeholders (badged in the UI) carrying folk/festival/secular material only — no ritual or devotional content, no shipped recordings yet (self-recorded or CC0 only). Add yours: copy `player/src/packs/axom/`, map 8 events, open a PR. Full schema: [`docs/CULTURAL_PACKS.md`](docs/CULTURAL_PACKS.md). Punjabi/Assamese musician feedback welcome.
 
 ## Share & deploy
 

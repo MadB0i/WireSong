@@ -1,7 +1,6 @@
 import ambientPackJson from "../packs/ambient/pack.json";
 import axomPackJson from "../packs/axom/pack.json";
-import bodoPackJson from "../packs/bodo/pack.json";
-import chiptunePackJson from "../packs/chiptune/pack.json";
+import punjabPackJson from "../packs/punjab/pack.json";import chiptunePackJson from "../packs/chiptune/pack.json";
 import ensemblePackJson from "../packs/ensemble/pack.json";
 import orchestralPackJson from "../packs/orchestral/pack.json";
 
@@ -29,7 +28,7 @@ export const EVENT_TYPES = [
 
 export type PackEventType = (typeof EVENT_TYPES)[number];
 
-export const PACK_IDS = ["ambient", "chiptune", "orchestral", "ensemble", "axom", "bodo"] as const;
+export const PACK_IDS = ["ambient", "chiptune", "orchestral", "ensemble", "axom", "punjab"] as const;
 
 export type PackId = (typeof PACK_IDS)[number];
 
@@ -304,8 +303,7 @@ export async function loadPack(id: string, fetchFn: FetchFn = fetch as unknown a
 const bundled: Record<string, PackDefinition> = {
   ambient: ambientPackJson as unknown as PackDefinition,
   axom: axomPackJson as unknown as PackDefinition,
-  bodo: bodoPackJson as unknown as PackDefinition,
-  chiptune: chiptunePackJson as unknown as PackDefinition,
+  punjab: punjabPackJson as unknown as PackDefinition,  chiptune: chiptunePackJson as unknown as PackDefinition,
   ensemble: ensemblePackJson as unknown as PackDefinition,
   orchestral: orchestralPackJson as unknown as PackDefinition,
 };

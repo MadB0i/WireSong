@@ -7,7 +7,7 @@ so switching packs mid-stream never breaks the harmony.
 
 The engine is culture-agnostic: shared code, UI strings, and tests never
 name a festival, season, or tradition. Everything cultural lives in pack
-data under `player/src/packs/<id>/`. Pack ids (e.g. `axom`, `bodo`) are
+data under `player/src/packs/<id>/`. Pack ids (e.g. `axom`, `punjab`) are
 registry keys — like `ambient` — and may appear in code and tests as data.
 
 Content policy: **folk, festival, and secular classical-scale material
@@ -20,7 +20,7 @@ UI, samples, or docs.
 |---|---|---|
 | Ambient, Chiptune, Orchestral, Ensemble | stock synth timbres | built-in |
 | Axom (Bihu) — অসম (বিহু) | Assamese Bihu folk | placeholder |
-| Bodo folk | Bwisagu dance-season folk skeleton | placeholder |
+| Punjab (Bhangra) — ਪੰਜਾਬ (ਭੰਗੜਾ) | Punjabi harvest dance folk | placeholder |
 
 Placeholder packs show a "placeholder · awaiting community review" badge
 in the picker until musicians from that tradition review them.
@@ -111,7 +111,7 @@ keeps the previous table, so a bad manifest can never silence playback.
 
 ## Adding a new culture pack
 
-1. Copy `src/packs/bodo/` to `src/packs/<id>/` and edit the manifest
+1. Copy `src/packs/axom/` to `src/packs/<id>/` and edit the manifest
    (keep `id` == directory name). Start with `status: "placeholder"`.
 2. Map the 8 events to existing fallback voices, or add new builders for
    new instruments (approximations only — no sampled audio yet).

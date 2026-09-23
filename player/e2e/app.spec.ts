@@ -41,7 +41,7 @@ test("live demo streams events into every visualizer", async ({ page }) => {
 });
 
 test("instrument pack manifests are served as JSON", async ({ request }) => {
-  for (const id of ["ambient", "chiptune", "orchestral", "ensemble", "axom", "bodo"]) {
+  for (const id of ["ambient", "chiptune", "orchestral", "ensemble", "axom", "punjab"]) {
     const res = await request.get(`/packs/${id}/pack.json`);
     expect(res.ok(), `/packs/${id}/pack.json serves`).toBeTruthy();
     const body = await res.json();
@@ -68,7 +68,7 @@ test("raga picker switches raga and toggles clock and meend", async ({ page }) =
 });
 
 test("culture packs stream the demo through fallback synths", async ({ page }) => {
-  for (const pack of ["pack-axom", "pack-bodo"]) {
+  for (const pack of ["pack-axom", "pack-punjab"]) {
     await page.goto("/");
     await expect(page.getByTestId("total")).toHaveText("0");
     await page.getByTestId(pack).click();
@@ -99,7 +99,7 @@ test("festival picker follows the active pack calendar", async ({ page, request 
   await expect(page.getByTestId("festival-auto-toggle")).toHaveAttribute("aria-pressed", "true");
   // Placeholder packs carry a community-review badge; stock packs do not.
   await expect(page.getByTestId("pack-axom-badge")).toContainText("awaiting community review");
-  await expect(page.getByTestId("pack-bodo-badge")).toContainText("awaiting community review");
+  await expect(page.getByTestId("pack-punjab-badge")).toContainText("awaiting community review");
   await expect(page.getByTestId("pack-ambient-badge")).toHaveCount(0);
 });
 

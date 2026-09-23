@@ -90,7 +90,7 @@ const PACK_ICONS: Record<string, ReactElement> = {
       <path d="M5 9l-2.5-4M19 9l2.5-4" />
     </svg>
   ),
-  bodo: (
+  punjab: (
     <svg
       viewBox="0 0 24 24"
       className="h-5 w-5"
@@ -99,10 +99,8 @@ const PACK_ICONS: Record<string, ReactElement> = {
       strokeWidth="1.8"
       strokeLinecap="round"
     >
-      <path d="M4 20L16 8" />
-      <circle cx="9.5" cy="15.5" r="1" />
-      <circle cx="12" cy="13" r="1" />
-      <circle cx="14.5" cy="10.5" r="1" />
+      <ellipse cx="12" cy="14" rx="7" ry="4" />
+      <path d="M7 10L4 5M17 10l3-5M12 10V3" />
     </svg>
   ),
 };
